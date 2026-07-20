@@ -108,6 +108,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   font-weight:700;color:#04121f;background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .chatinput button:disabled{opacity:.55;cursor:wait}
 .typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:4px 8px}
+.think{margin:14px 0;padding:14px 16px;border-radius:12px;background:rgba(56,189,248,.05);
+  border:1px solid rgba(56,189,248,.22);max-height:340px;overflow-y:auto}
+.think-title{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:10px}
+.llmtag{font-size:11px;font-weight:600;padding:2px 10px;border-radius:10px;margin-left:8px;
+  background:linear-gradient(135deg,#8b5cf6,#38bdf8);color:#fff;vertical-align:1px}
+.think-item{display:flex;gap:12px;margin-bottom:10px;font-size:13px;line-height:1.8}
+.think-stage{flex:none;width:130px;color:var(--accent2);font-weight:600}
+.think-text{color:#b9c8e8;white-space:pre-wrap}
+.plancard{margin:6px 0 12px;padding:12px 16px;border-radius:12px;
+  background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.3)}
 @media(max-width:900px){.grid{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -146,9 +156,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
           <input type="range" min="5" max="50" step="1" v-model.number="sigma">
         </template>
         <button class="btn" :disabled="running" @click="run">
-          <span v-if="running"><span class="spinner"></span>Agent处理中…</span>
-          <span v-else>🚀 启动Agent处理</span>
+          <span v-if="running"><span class="spinner"></span>AI智能体处理中…</span>
+          <span v-else>🚀 启动AI智能体</span>
         </button>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">
+          AI智能体将分析图像特征, 并对VT-BM3D等算法智能调参(α/β/texture_boost),
+          处理后自主反思优化, 全过程思考可见。
+        </div>
       </div>
 
       <div class="card">
@@ -158,7 +172,23 @@ input[type=range]{width:100%;accent-color:var(--accent)}
             <div class="dot">{{s.icon}}</div>{{s.name}}
           </div>
         </div>
-        <div v-if="!result && !running" class="empty">选择图像并启动Agent，处理结果将在此展示</div>
+        <div v-if="!result && !running" class="empty">选择图像并启动AI智能体，处理结果将在此展示</div>
+        <div class="think" v-if="thoughts.length">
+          <div class="think-title">🧠 AI 思考过程 <span class="llmtag" v-if="usedLLM">LLM在线推理</span></div>
+          <div class="think-item" v-for="t in thoughts">
+            <div class="think-stage">{{t.stage}}</div>
+            <div class="think-text">{{t.text}}</div>
+          </div>
+          <div class="typing" v-if="running">AI正在思考…</div>
+        </div>
+        <div class="plancard" v-if="plan">
+          <div class="think-title">⚙️ AI调参方案</div>
+          <span class="tag">算法: {{plan.method}}</span>
+          <span class="tag">噪声σ: {{Number(plan.sigma).toFixed(1)}}</span>
+          <span class="tag" v-for="(v,k) in (plan.params||{})">{{k}}: {{v}}</span>
+          <span class="tag" v-if="(plan.enhance||[]).length">增强: {{plan.enhance.map(zhVal).join(' + ')}}</span>
+          <div style="font-size:13px;color:var(--muted);margin-top:8px">💡 {{plan.reason}}</div>
+        </div>
         <template v-if="result">
           <div class="imgs">
             <div class="imgbox" v-if="result.reference_image">
@@ -198,18 +228,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
           <span class="tag">噪声等级: {{zhVal(result.perception.noise_level)}}</span>
           <span class="tag">边缘密度: {{result.perception.edge_density}}</span>
           <span class="tag">纹理复杂度: {{result.perception.texture_complexity}}</span>
-          <span class="tag">规划器: {{result.planner==='llm'?'LLM智能规划':'专家规则'}}</span>
+          <span class="tag">规划器: {{usedLLM?'LLM智能调参':'专家规则'}}</span>
         </div>
         <div ref="radarEl" class="chart" style="height:280px"></div>
       </div>
       <div class="card">
-        <h3>决策与执行轨迹</h3>
+        <h3>调参与反思历史</h3>
         <div class="trace">
-          <div class="step" v-for="(t,i) in result.trace">
+          <div class="step" v-for="(h,i) in result.history">
             <div class="no">{{i+1}}</div>
             <div>
-              <div><code>{{toolName(t.tool)}}</code> <span style="color:var(--muted)">{{fmtArgs(t.args)}}</span></div>
-              <div class="res">{{fmtRes(t.result)}}</div>
+              <div><code>{{i===0?'初次方案':'反思重试'}}</code>
+                <span style="color:var(--muted)">{{fmtArgs({method:h.plan.method,sigma:Number(h.plan.sigma).toFixed(1),...(h.plan.params||{})})}}</span></div>
+              <div class="res">{{fmtRes(h.evaluation)}}</div>
             </div>
           </div>
         </div>
@@ -323,9 +354,10 @@ createApp({
   data(){return{
     tab:'run', samples:[], sampleId:'', file:null, addNoise:true, sigma:25,
     running:false, stageIdx:-1, result:null, bench:[], paper:null,
+    thoughts:[], plan:null, usedLLM:false,
     chatLog:[], chatText:'', chatBusy:false, chatInit:false,
     quickQs:['用σ=25处理Set12第5张','介绍一下VT-BM3D','DnCNN是什么','论文里提升了多少','σ=25下哪个算法最好','你是怎么决策的'],
-    stages:[{name:'感知分析',icon:'🔍'},{name:'智能决策',icon:'🧠'},{name:'执行处理',icon:'⚙️'},{name:'质量评估',icon:'📈'}]
+    stages:[{name:'感知分析',icon:'🔍'},{name:'AI智能调参',icon:'🧠'},{name:'执行处理',icon:'⚙️'},{name:'评估与反思',icon:'📈'}]
   }},
   async mounted(){
     this.samples = await (await fetch('/api/samples')).json();
@@ -362,13 +394,14 @@ createApp({
       const text=(preset||this.chatText).trim();
       if(!text||this.chatBusy) return;
       this.chatText='';
-      this.chatLog.push({role:'user',html:this.mdToHtml(text)});
+      this.chatLog.push({role:'user',html:this.mdToHtml(text),raw:text});
       this.chatBusy=true;
       this.scrollChat();
       try{
         const fd=new FormData(); fd.append('message',text);
+        fd.append('history',JSON.stringify(this.chatLog.slice(-8).map(m=>({role:m.role==='user'?'user':'assistant',content:m.raw||''}))));
         const res=await (await fetch('/api/chat',{method:'POST',body:fd})).json();
-        this.chatLog.push({role:'agent',html:this.mdToHtml(res.reply),images:res.images||null});
+        this.chatLog.push({role:'agent',html:this.mdToHtml(res.reply),raw:res.reply,images:res.images||null});
       }catch(e){
         this.chatLog.push({role:'agent',html:'抱歉, 处理出错了, 请重试。'});
       }finally{ this.chatBusy=false; this.scrollChat(); }
@@ -377,19 +410,41 @@ createApp({
     async run(){
       if(!this.file && !this.sampleId){ alert('请上传图像或选择示例'); return; }
       this.running = true; this.result = null; this.stageIdx = 0;
-      const anim = setInterval(()=>{ if(this.stageIdx<3) this.stageIdx++; }, 1600);
+      this.thoughts = []; this.plan = null;
       try{
         const fd = new FormData();
         if(this.file) fd.append('file', this.file);
         fd.append('sample_id', this.sampleId);
         fd.append('add_noise', this.addNoise);
         fd.append('sigma', this.sigma);
-        const res = await (await fetch('/api/process',{method:'POST',body:fd})).json();
-        if(res.error){ alert(res.error); return; }
-        this.result = res;
-        this.$nextTick(()=>this.drawRadar());
-      } finally { clearInterval(anim); this.running=false; this.stageIdx=4; }
+        const resp = await fetch('/api/ai_process',{method:'POST',body:fd});
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf='';
+        while(true){
+          const {done,value} = await reader.read();
+          if(done) break;
+          buf += dec.decode(value,{stream:true});
+          let idx;
+          while((idx=buf.indexOf('\n\n'))>=0){
+            const chunk=buf.slice(0,idx); buf=buf.slice(idx+2);
+            if(!chunk.startsWith('data: ')) continue;
+            const ev=JSON.parse(chunk.slice(6));
+            if(ev.type==='stage'){
+              this.stageIdx = ({'感知分析':0,'AI特征分析与智能调参':1,'执行处理':2,'质量评估与AI反思':3})[ev.stage] ?? this.stageIdx;
+            }
+            else if(ev.type==='thinking'){ this.thoughts.push({stage:ev.stage,text:ev.text}); this.scrollThink(); }
+            else if(ev.type==='decision'){ this.plan = ev.plan; this.usedLLM = !!ev.llm; }
+            else if(ev.type==='result'){
+              this.result = ev; this.plan = ev.plan; this.usedLLM = !!ev.llm;
+              this.$nextTick(()=>this.drawRadar());
+            }
+          }
+        }
+      } catch(e){ alert('处理出错: '+e); }
+      finally { this.running=false; this.stageIdx=4; }
     },
+    scrollThink(){ this.$nextTick(()=>{ const el=document.querySelector('.think'); if(el) el.scrollTop=el.scrollHeight; }); },
     drawRadar(){
       const p = this.result.perception;
       const chart = echarts.init(this.$refs.radarEl, null, {renderer:'canvas'});

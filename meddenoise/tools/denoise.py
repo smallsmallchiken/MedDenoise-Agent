@@ -91,7 +91,12 @@ DENOISERS = {
 }
 
 
-def denoise(image: np.ndarray, method: str, sigma: float = 15.0) -> np.ndarray:
+def denoise(image: np.ndarray, method: str, sigma: float = 15.0,
+            params: dict | None = None) -> np.ndarray:
     if method not in DENOISERS:
         raise ValueError(f"未知去噪方法 '{method}', 可选: {list(DENOISERS)}")
+    if params and method == "vt-bm3d":
+        allowed = {k: float(v) for k, v in params.items()
+                   if k in ("alpha", "beta_tensor", "texture_boost")}
+        return vt_bm3d_denoise(image, sigma, **allowed)
     return DENOISERS[method](image, sigma)

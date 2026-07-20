@@ -11,13 +11,18 @@ from pathlib import Path
 
 import numpy as np
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+
+load_dotenv()
 from skimage import io as skio, transform
 from skimage.util import img_as_float
 
 from meddenoise import data as med_data
+from meddenoise.agent import llm
+from meddenoise.agent.ai_pipeline import run_ai_pipeline
 from meddenoise.agent.chat import ChatAgent
 from meddenoise.agent.coordinator import Coordinator
 from meddenoise.tools import metrics
@@ -105,11 +110,76 @@ async def process(file: UploadFile | None = File(None),
     return response
 
 
+@app.post("/api/ai_process")
+async def ai_process(file: UploadFile | None = File(None),
+                     sample_id: str = Form(""),
+                     add_noise: bool = Form(True),
+                     sigma: float = Form(25.0)):
+    if file is not None and file.filename:
+        raw = skio.imread(io.BytesIO(await file.read()))
+        image = _prepare(raw)
+    elif sample_id:
+        image = _load_sample(sample_id)
+    else:
+        return {"error": "请上传图像或选择示例"}
+
+    reference = None
+    noisy = image
+    if add_noise:
+        reference = image
+        noisy = med_data.add_gaussian_noise(image, sigma=sigma)
+
+    def stream():
+        for event in run_ai_pipeline(noisy, reference):
+            if event["type"] == "result":
+                payload = {
+                    "type": "result",
+                    "perception": event["perception"],
+                    "plan": event["plan"],
+                    "evaluation": event["evaluation"],
+                    "history": [{"plan": h["plan"],
+                                 "evaluation": h["evaluation"]}
+                                for h in event["history"]],
+                    "llm": event["llm"],
+                    "input_image": _to_b64(noisy),
+                    "output_image": _to_b64(event["output"]),
+                }
+                if reference is not None:
+                    payload["reference_image"] = _to_b64(reference)
+                    payload["noisy_metrics"] = metrics.full_reference_metrics(
+                        reference, noisy)
+                yield "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
+            else:
+                yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+CHAT_SYSTEM = (
+    "你是「MedDenoise-Agent」医学影像智能去噪系统的AI助手, 精通VT-BM3D论文"
+    "(Peng et al., Signal Processing 243 (2026) 110417: 结构感知+噪声自适应联合优化, "
+    "相对BM3D平均PSNR提升2.04dB, 复杂纹理最大4.19dB)、DnCNN深度学习去噪与传统方法。"
+    "本系统: 多Agent架构(感知→AI调参→执行→反思), 支持Set12/BSD300数据集, "
+    "本地实测σ=25时 DnCNN 29.58dB > BM3D 29.19 > VT-BM3D 29.03 (纯高斯噪声)。"
+    "用简洁专业的中文回答, 可用Markdown, 专业名词(PSNR/SSIM等)保留英文。"
+    "若用户想处理图像, 建议其直接说「用σ=25处理Set12第5张」这样的指令。"
+)
+
+
 @app.post("/api/chat")
-async def chat(message: str = Form(...)):
+async def chat(message: str = Form(...), history: str = Form("[]")):
     out = chat_agent.reply(message)
-    response = {"reply": out["reply"]}
     action = out.get("action")
+    if action is None and llm.is_llm_available():
+        try:
+            msgs = [m for m in json.loads(history) if m.get("content")][-8:]
+        except json.JSONDecodeError:
+            msgs = []
+        msgs.append({"role": "user", "content": message})
+        reply = llm.llm_chat(CHAT_SYSTEM, msgs)
+        if reply:
+            return {"reply": reply, "llm": True}
+    response = {"reply": out["reply"]}
     if action and action["type"] == "process":
         image = _load_sample(action["sample_id"])
         noisy = med_data.add_gaussian_noise(image, sigma=action["sigma"])

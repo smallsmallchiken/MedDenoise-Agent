@@ -8,3 +8,4 @@ gradio
 pytest
 torch  # DnCNN深度学习去噪器
 anthropic  # 可选: LLM规划器
+python-dotenv  # .env加载
