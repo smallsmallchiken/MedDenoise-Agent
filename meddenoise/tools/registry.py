@@ -16,7 +16,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "denoise_image",
-        "description": "使用指定算法对图像去噪, 可选算法: gaussian/median/nlm/wavelet/bm3d/sa-bm3d",
+        "description": "使用指定算法对图像去噪, 可选算法: gaussian/median/nlm/wavelet/bm3d/vt-bm3d/dncnn(深度学习)",
         "input_schema": {
             "type": "object",
             "properties": {

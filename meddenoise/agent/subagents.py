@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from ..tools import analysis, metrics
+from ..tools import analysis, dncnn, metrics
 from ..tools.registry import ToolExecutor
 from .memory import CaseMemory
 from .planner import make_plan
@@ -67,7 +67,12 @@ class EvaluationAgent:
             if step["tool"] == "denoise_image":
                 used.add(step["args"].get("method"))
                 last_sigma = step["args"].get("sigma", last_sigma)
-        method = "sa-bm3d" if "sa-bm3d" not in used else "bm3d"
+        if "dncnn" not in used and dncnn.is_available():
+            method = "dncnn"
+        elif "vt-bm3d" not in used:
+            method = "vt-bm3d"
+        else:
+            method = "bm3d"
         args: dict = {"method": method}
         if last_sigma:
             args["sigma"] = round(last_sigma * 1.3, 2)  # 残留噪声 -> 提升去噪强度

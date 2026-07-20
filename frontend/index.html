@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedDenoise-Agent · 医学影像智能去噪与质量增强系统</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0b1220;--panel:#111a2e;--panel2:#16223c;--line:#233250;
+  --text:#e8eefc;--muted:#8aa0c8;--accent:#38bdf8;--accent2:#818cf8;
+  --ok:#34d399;--warn:#fbbf24;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 600px at 80% -10%,#16305c 0%,var(--bg) 55%);
+  color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;min-height:100vh}
+.header{display:flex;align-items:center;gap:14px;padding:22px 36px;border-bottom:1px solid var(--line);
+  backdrop-filter:blur(6px);position:sticky;top:0;background:rgba(11,18,32,.8);z-index:10}
+.logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 18px rgba(56,189,248,.4)}
+.header h1{font-size:20px;font-weight:700;letter-spacing:.5px}
+.header .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.tabs{margin-left:auto;display:flex;gap:8px}
+.tab{padding:8px 18px;border-radius:10px;cursor:pointer;color:var(--muted);font-size:14px;
+  border:1px solid transparent;transition:.2s}
+.tab.active{color:var(--text);background:var(--panel2);border-color:var(--line)}
+.tab:hover{color:var(--text)}
+.main{max-width:1280px;margin:26px auto;padding:0 24px;display:grid;gap:20px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.card{background:linear-gradient(180deg,var(--panel) 0%,rgba(17,26,46,.85) 100%);
+  border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.card h3{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:#cfe0ff}
+.card h3::before{content:"";width:4px;height:16px;border-radius:2px;
+  background:linear-gradient(var(--accent),var(--accent2))}
+label{font-size:13px;color:var(--muted);display:block;margin:12px 0 6px}
+select,input[type=file]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:14px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.switch{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;cursor:pointer}
+.btn{width:100%;margin-top:18px;padding:13px;border:none;border-radius:12px;cursor:pointer;
+  font-size:15px;font-weight:700;color:#04121f;letter-spacing:1px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));transition:.2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(56,189,248,.45)}
+.btn:disabled{opacity:.55;cursor:wait;transform:none}
+.pipeline{display:flex;gap:0;margin:4px 0 18px}
+.stage{flex:1;text-align:center;position:relative;padding:10px 4px;font-size:13px;color:var(--muted)}
+.stage .dot{width:34px;height:34px;margin:0 auto 8px;border-radius:50%;display:grid;place-items:center;
+  background:var(--panel2);border:2px solid var(--line);font-size:15px;transition:.3s}
+.stage:not(:last-child)::after{content:"";position:absolute;top:26px;left:calc(50% + 20px);
+  width:calc(100% - 40px);height:2px;background:var(--line)}
+.stage.active .dot{border-color:var(--accent);box-shadow:0 0 14px rgba(56,189,248,.6);color:var(--accent)}
+.stage.done .dot{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#04121f}
+.stage.done{color:var(--text)}
+.imgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.imgbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.imgbox img{width:100%;border-radius:8px;image-rendering:auto}
+.imgbox .cap{font-size:13px;color:var(--muted);margin-top:8px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.metric .v{font-size:24px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.metric .k{font-size:12px;color:var(--muted);margin-top:4px}
+.metric .d{font-size:12px;color:var(--ok);margin-top:2px}
+.trace{margin-top:6px}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.step:last-child{border:none}
+.step .no{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--panel2);border:1px solid var(--accent);color:var(--accent);font-size:12px}
+.step code{color:var(--warn);background:rgba(251,191,36,.08);padding:1px 6px;border-radius:6px}
+.step .res{color:var(--muted);margin-top:3px;word-break:break-all}
+.tag{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;margin:2px 4px 2px 0;
+  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--accent)}
+.chart{width:100%;height:360px}
+.charts2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.empty{color:var(--muted);text-align:center;padding:60px 0;font-size:14px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #04121f;border-top-color:transparent;
+  border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.footer{text-align:center;color:var(--muted);font-size:12px;padding:26px 0}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo">🏥</div>
+    <div>
+      <h1>MedDenoise-Agent</h1>
+      <div class="sub">基于智能Agent的医学影像智能去噪与质量增强系统 · VT-BM3D + DnCNN</div>
+    </div>
+    <div class="tabs">
+      <div class="tab" :class="{active:tab==='run'}" @click="tab='run'">🤖 智能处理</div>
+      <div class="tab" :class="{active:tab==='bench'}" @click="switchBench">📊 算法评测</div>
+      <div class="tab" :class="{active:tab==='arch'}" @click="tab='arch'">🧩 系统架构</div>
+    </div>
+  </div>
+
+  <div class="main" v-show="tab==='run'">
+    <div class="grid">
+      <div class="card">
+        <h3>输入配置</h3>
+        <label>上传医学影像 (PNG/JPG)</label>
+        <input type="file" accept="image/*" @change="onFile">
+        <label>或选择示例图像</label>
+        <select v-model="sampleId">
+          <option value="">-- 请选择 --</option>
+          <option v-for="s in samples" :value="s.id">{{s.name}}</option>
+        </select>
+        <label class="switch"><input type="checkbox" v-model="addNoise"> 添加合成噪声 (可计算PSNR/SSIM)</label>
+        <template v-if="addNoise">
+          <label>噪声强度 σ = {{sigma}}</label>
+          <input type="range" min="5" max="50" step="1" v-model.number="sigma">
+        </template>
+        <button class="btn" :disabled="running" @click="run">
+          <span v-if="running"><span class="spinner"></span>Agent处理中…</span>
+          <span v-else>🚀 启动Agent处理</span>
+        </button>
+      </div>
+
+      <div class="card">
+        <h3>Agent 处理流水线</h3>
+        <div class="pipeline">
+          <div class="stage" v-for="(s,i) in stages" :class="{active:stageIdx===i&&running, done:stageIdx>i||(!running&&result)}">
+            <div class="dot">{{s.icon}}</div>{{s.name}}
+          </div>
+        </div>
+        <div v-if="!result && !running" class="empty">选择图像并启动Agent，处理结果将在此展示</div>
+        <template v-if="result">
+          <div class="imgs">
+            <div class="imgbox" v-if="result.reference_image">
+              <img :src="result.reference_image"><div class="cap">原始图像</div>
+            </div>
+            <div class="imgbox">
+              <img :src="result.input_image">
+              <div class="cap">输入{{result.reference_image?' (含噪声 σ='+sigma+')':''}}
+                <span v-if="result.noisy_metrics"> · PSNR {{result.noisy_metrics.psnr}}dB</span></div>
+            </div>
+            <div class="imgbox">
+              <img :src="result.output_image"><div class="cap">✨ Agent 处理结果</div>
+            </div>
+          </div>
+          <div class="metrics" v-if="result.evaluation">
+            <div class="metric" v-if="result.evaluation.psnr!==undefined">
+              <div class="v">{{result.evaluation.psnr}}</div><div class="k">PSNR (dB)</div>
+              <div class="d" v-if="result.noisy_metrics">↑ +{{(result.evaluation.psnr-result.noisy_metrics.psnr).toFixed(2)}} dB</div>
+            </div>
+            <div class="metric" v-if="result.evaluation.ssim!==undefined">
+              <div class="v">{{result.evaluation.ssim}}</div><div class="k">SSIM</div>
+              <div class="d" v-if="result.noisy_metrics">↑ +{{(result.evaluation.ssim-result.noisy_metrics.ssim).toFixed(4)}}</div>
+            </div>
+            <div class="metric"><div class="v">{{result.evaluation.laplacian_sharpness}}</div><div class="k">清晰度 (Laplacian)</div></div>
+            <div class="metric"><div class="v">{{result.evaluation.entropy}}</div><div class="k">信息熵</div></div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="grid" v-if="result">
+      <div class="card">
+        <h3>感知分析</h3>
+        <div style="font-size:14px;line-height:2">
+          <span class="tag">模态: {{result.perception.modality}}</span>
+          <span class="tag">噪声σ: {{result.perception.estimated_sigma}}</span>
+          <span class="tag">噪声等级: {{result.perception.noise_level}}</span>
+          <span class="tag">边缘密度: {{result.perception.edge_density}}</span>
+          <span class="tag">纹理复杂度: {{result.perception.texture_complexity}}</span>
+          <span class="tag">规划器: {{result.planner==='llm'?'LLM智能规划':'专家规则'}}</span>
+        </div>
+        <div ref="radarEl" class="chart" style="height:280px"></div>
+      </div>
+      <div class="card">
+        <h3>决策与执行轨迹</h3>
+        <div class="trace">
+          <div class="step" v-for="(t,i) in result.trace">
+            <div class="no">{{i+1}}</div>
+            <div>
+              <div><code>{{t.tool}}</code> <span style="color:var(--muted)">{{fmtArgs(t.args)}}</span></div>
+              <div class="res">{{fmtRes(t.result)}}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main" v-show="tab==='bench'">
+    <div class="card">
+      <h3>算法评测 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
+      <div v-if="!bench.length" class="empty">暂无评测数据 — 请先运行 python experiments/run_experiments.py</div>
+      <div class="charts2" v-else>
+        <div ref="psnrEl" class="chart"></div>
+        <div ref="ssimEl" class="chart"></div>
+      </div>
+      <div ref="barEl" class="chart" v-if="bench.length"></div>
+    </div>
+  </div>
+
+  <div class="main" v-show="tab==='arch'">
+    <div class="card">
+      <h3>多Agent协作架构</h3>
+      <pre style="font-size:13px;line-height:1.7;color:#9fb6e0;overflow:auto">
+              ┌───────────────────────────────────────┐
+              │        协调Agent (Coordinator)         │
+              │   感知 → 决策 → 执行 → 评估 自主闭环     │
+              └──────────────────┬────────────────────┘
+     ┌───────────┬──────────────┼──────────────┬───────────┐
+     ▼           ▼              ▼              ▼           │ 质量不达标
+┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐        │ 反思重规划
+│ 感知Agent │ │ 决策Agent │ │ 执行Agent │ │ 评估Agent │────────┘
+│ 噪声估计  │ │ LLM/规则  │ │ 工具调用  │ │ PSNR/SSIM │
+│ 结构张量  │ │ +Skills   │ │ 状态维护  │ │ 无参考指标 │
+│ 模态识别  │ │ +Memory   │ │           │ │           │
+└─────────┘ └──────────┘ └────┬─────┘ └──────────┘
+                              ▼
+        ┌──────────────────────────────────────────┐
+        │        工具层 (Tool Registry)              │
+        │ 去噪: Gaussian/Median/NLM/Wavelet/BM3D/    │
+        │       VT-BM3D(结构感知)/DnCNN(深度学习)     │
+        │ 增强: CLAHE / Unsharp / Gamma              │
+        │ 评价: PSNR / SSIM / RMSE / 无参考指标        │
+        └──────────────────────────────────────────┘</pre>
+      <div style="font-size:14px;color:var(--muted);line-height:1.9;margin-top:10px">
+        <b style="color:var(--text)">核心创新 · VT-BM3D:</b> 以局部方差(α=0.4)与结构张量相干性(β=0.6)构建结构显著性图，
+        平坦区强去噪、边缘/纹理区弱去噪后逐像素融合，兼顾PSNR与细节保留；<br>
+        <b style="color:var(--text)">深度学习 · DnCNN:</b> 17层残差卷积神经网络(PyTorch)，学习预测噪声残差，σ=25水平去噪效果最佳；<br>
+        <b style="color:var(--text)">智能Agent:</b> 双模规划器(LLM/专家规则)、技能知识库(SKILL.md)、案例记忆、反思式迭代优化。
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">MedDenoise-Agent · 新疆大学软件学院小学期实训项目 · Python + PyTorch + BM3D + Vue3 + ECharts</div>
+</div>
+
+<script>
+const {createApp} = Vue;
+createApp({
+  data(){return{
+    tab:'run', samples:[], sampleId:'', file:null, addNoise:true, sigma:25,
+    running:false, stageIdx:-1, result:null, bench:[],
+    stages:[{name:'感知分析',icon:'🔍'},{name:'智能决策',icon:'🧠'},{name:'执行处理',icon:'⚙️'},{name:'质量评估',icon:'📈'}]
+  }},
+  async mounted(){
+    this.samples = await (await fetch('/api/samples')).json();
+  },
+  methods:{
+    onFile(e){ this.file = e.target.files[0] || null; },
+    fmtArgs(a){ return Object.keys(a||{}).length ? JSON.stringify(a) : ''; },
+    fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${k}: ${v}`).join(' · '); },
+    async run(){
+      if(!this.file && !this.sampleId){ alert('请上传图像或选择示例'); return; }
+      this.running = true; this.result = null; this.stageIdx = 0;
+      const anim = setInterval(()=>{ if(this.stageIdx<3) this.stageIdx++; }, 1600);
+      try{
+        const fd = new FormData();
+        if(this.file) fd.append('file', this.file);
+        fd.append('sample_id', this.sampleId);
+        fd.append('add_noise', this.addNoise);
+        fd.append('sigma', this.sigma);
+        const res = await (await fetch('/api/process',{method:'POST',body:fd})).json();
+        if(res.error){ alert(res.error); return; }
+        this.result = res;
+        this.$nextTick(()=>this.drawRadar());
+      } finally { clearInterval(anim); this.running=false; this.stageIdx=4; }
+    },
+    drawRadar(){
+      const p = this.result.perception;
+      const chart = echarts.init(this.$refs.radarEl, null, {renderer:'canvas'});
+      chart.setOption({
+        backgroundColor:'transparent',
+        radar:{indicator:[
+          {name:'噪声强度',max:50},{name:'边缘密度',max:0.5},
+          {name:'纹理复杂度',max:0.05},{name:'相干性',max:1},{name:'动态范围',max:1}],
+          splitArea:{show:false}, axisLine:{lineStyle:{color:'#233250'}},
+          splitLine:{lineStyle:{color:'#233250'}}, axisName:{color:'#8aa0c8'}},
+        series:[{type:'radar',data:[{value:[p.estimated_sigma,p.edge_density,
+          p.texture_complexity,p.mean_coherence,p.dynamic_range],name:'影像特征',
+          areaStyle:{color:'rgba(56,189,248,.25)'},lineStyle:{color:'#38bdf8'}}]}]
+      });
+    },
+    async switchBench(){
+      this.tab='bench';
+      if(!this.bench.length){
+        this.bench = (await (await fetch('/api/benchmark')).json()).rows || [];
+        this.$nextTick(()=>this.drawBench());
+      }
+    },
+    drawBench(){
+      if(!this.bench.length) return;
+      const methods=[...new Set(this.bench.map(r=>r.method))].filter(m=>m!=='noisy');
+      const sigmas=[...new Set(this.bench.map(r=>r.sigma))];
+      const base={backgroundColor:'transparent',
+        legend:{textStyle:{color:'#8aa0c8'},top:0},
+        grid:{left:50,right:20,bottom:35,top:45},
+        xAxis:{type:'category',data:sigmas.map(s=>'σ='+s),axisLabel:{color:'#8aa0c8'},axisLine:{lineStyle:{color:'#233250'}}},
+        tooltip:{trigger:'axis'}};
+      const mk=(el,key,name,min)=>{
+        const c=echarts.init(this.$refs[el]);
+        c.setOption({...base,title:{text:name,textStyle:{color:'#cfe0ff',fontSize:14},top:0,left:'center'},
+          yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
+          series:methods.map(m=>({name:m,type:'line',smooth:true,symbolSize:8,
+            data:sigmas.map(s=>{const r=this.bench.find(x=>x.sigma===s&&x.method===m);return r?+r[key]:null;})}))});
+      };
+      mk('psnrEl','psnr','PSNR (dB) 随噪声强度变化');
+      mk('ssimEl','ssim','SSIM 随噪声强度变化');
+      const c=echarts.init(this.$refs.barEl);
+      const s25=this.bench.filter(r=>r.sigma==='25'&&r.method!=='noisy');
+      c.setOption({backgroundColor:'transparent',
+        title:{text:'σ=25 各算法 PSNR 对比',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
+        grid:{left:50,right:20,bottom:35,top:45}, tooltip:{},
+        xAxis:{type:'category',data:s25.map(r=>r.method),axisLabel:{color:'#8aa0c8'}},
+        yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
+        series:[{type:'bar',barWidth:'45%',data:s25.map(r=>+r.psnr),
+          itemStyle:{borderRadius:[6,6,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,
+            [{offset:0,color:'#38bdf8'},{offset:1,color:'#818cf8'}])},
+          label:{show:true,position:'top',color:'#e8eefc'}}]});
+    }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

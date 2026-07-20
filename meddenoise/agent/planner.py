@@ -6,6 +6,8 @@
 import json
 import os
 
+from ..tools import dncnn
+
 
 def rule_based_plan(perception: dict, similar_cases: list[dict] | None = None) -> list[dict]:
     """专家规则规划器: 根据感知结果生成"去噪+增强"工具调用计划."""
@@ -22,10 +24,14 @@ def rule_based_plan(perception: dict, similar_cases: list[dict] | None = None) -
     plan: list[dict] = []
     if sigma < 3:
         pass  # 噪声极低, 无需去噪
-    elif edge_density > 0.12 or sigma > 25:
-        # 结构复杂或强噪声: 结构感知SA-BM3D兼顾细节保留与去噪强度
+    elif 18 <= sigma <= 32 and dncnn.is_available():
+        # 中强噪声且接近DnCNN训练噪声水平(σ=25): 深度学习去噪器效果最佳
         plan.append({"tool": "denoise_image",
-                     "args": {"method": "sa-bm3d", "sigma": sigma}})
+                     "args": {"method": "dncnn", "sigma": sigma}})
+    elif edge_density > 0.12 or sigma > 25:
+        # 结构复杂或强噪声: 结构感知VT-BM3D兼顾细节保留与去噪强度
+        plan.append({"tool": "denoise_image",
+                     "args": {"method": "vt-bm3d", "sigma": sigma}})
     elif sigma > 10:
         plan.append({"tool": "denoise_image",
                      "args": {"method": "bm3d", "sigma": sigma}})
@@ -55,7 +61,7 @@ def llm_plan(perception: dict, skills_context: str = "") -> list[dict] | None:
         )
         prompt = f"""你是医学影像去噪专家Agent。基于以下感知分析结果, 输出一个JSON数组形式的处理计划。
 可用工具:
-- denoise_image(method: gaussian/median/nlm/wavelet/bm3d/sa-bm3d, sigma: number)
+- denoise_image(method: gaussian/median/nlm/wavelet/bm3d/vt-bm3d/dncnn, sigma: number)
 - enhance_image(method: clahe/unsharp/gamma)
 - evaluate_quality()
 

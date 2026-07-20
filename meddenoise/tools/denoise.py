@@ -1,9 +1,13 @@
-"""去噪算法工具库: 经典滤波、NLM、小波、BM3D 及结构感知SA-BM3D."""
+"""去噪算法工具库: 经典滤波、NLM、小波、BM3D 及结构感知VT-BM3D."""
 
 import numpy as np
 import cv2
 from skimage.restoration import denoise_nl_means, denoise_wavelet, estimate_sigma
 from skimage.filters import sobel
+from skimage.feature import structure_tensor, structure_tensor_eigenvalues
+from scipy import ndimage
+
+from .dncnn import dncnn_denoise
 
 try:
     import bm3d as _bm3d
@@ -49,18 +53,16 @@ def bm3d_denoise(image: np.ndarray, sigma: float = 15.0) -> np.ndarray:
                               stage_arg=_bm3d.BM3DStages.ALL_STAGES), 0, 1)
 
 
-def sa_bm3d_denoise(image: np.ndarray, sigma: float = 15.0,
-                    alpha: float = 0.4, beta: float = 0.6,
+def vt_bm3d_denoise(image: np.ndarray, sigma: float = 15.0,
+                    alpha: float = 0.4, beta_tensor: float = 0.6,
                     texture_boost: float = 1.4) -> np.ndarray:
-    """结构感知SA-BM3D (借鉴VT-BM3D思想的Python实现).
+    """VT-BM3D: 结构感知自适应阈值的协同滤波去噪 (论文算法的Python实现).
 
-    利用局部方差与结构张量相干性构建结构显著性图 S,
-    对平坦区采用较强去噪(高sigma)、对边缘/纹理区采用较弱去噪(低sigma),
+    与MATLAB参考实现一致: 以方差特征权重 alpha、结构张量特征权重 beta_tensor
+    构建结构显著性图 S = alpha*V + beta_tensor*C;
+    平坦区采用较强去噪(1.15σ)、边缘/纹理区按 texture_boost 降低去噪强度(σ/1.4),
     再按 S 逐像素融合两次BM3D结果, 在提升PSNR的同时保留结构细节.
     """
-    from skimage.feature import structure_tensor, structure_tensor_eigenvalues
-    from scipy import ndimage
-
     local_var = ndimage.uniform_filter(image ** 2, 7) - ndimage.uniform_filter(image, 7) ** 2
     var_map = local_var / (local_var.max() + 1e-12)
 
@@ -68,7 +70,7 @@ def sa_bm3d_denoise(image: np.ndarray, sigma: float = 15.0,
     l1, l2 = structure_tensor_eigenvalues([Axx, Axy, Ayy])
     coherence = np.where(l1 + l2 > 1e-12, ((l1 - l2) / (l1 + l2 + 1e-12)) ** 2, 0.0)
 
-    saliency = alpha * var_map + beta * coherence
+    saliency = alpha * var_map + beta_tensor * coherence
     saliency = ndimage.gaussian_filter(saliency, 2.0)
     saliency = saliency / (saliency.max() + 1e-12)
 
@@ -84,7 +86,8 @@ DENOISERS = {
     "nlm": nlm_denoise,
     "wavelet": wavelet_denoise,
     "bm3d": bm3d_denoise,
-    "sa-bm3d": sa_bm3d_denoise,
+    "vt-bm3d": vt_bm3d_denoise,
+    "dncnn": dncnn_denoise,
 }
 
 

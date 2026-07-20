@@ -4,3 +4,5 @@ outputs/
 memory/cases.jsonl
 .env
 .venv/
+data/datasets/BSDS300/
+weights/*.pth

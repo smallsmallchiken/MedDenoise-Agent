@@ -42,8 +42,8 @@ def test_denoisers_improve_psnr(phantom, noisy, method):
     assert metrics.psnr(phantom, output) > metrics.psnr(phantom, noisy)
 
 
-def test_sa_bm3d_beats_gaussian(phantom, noisy):
-    sa = denoise.denoise(noisy, "sa-bm3d", 25)
+def test_vt_bm3d_beats_gaussian(phantom, noisy):
+    sa = denoise.denoise(noisy, "vt-bm3d", 25)
     gauss = denoise.denoise(noisy, "gaussian", 25)
     assert metrics.psnr(phantom, sa) > metrics.psnr(phantom, gauss)
 
@@ -55,10 +55,17 @@ def test_enhancers_output_range(noisy):
 
 
 def test_rule_planner():
+    from meddenoise.tools import dncnn
+
     plan = rule_based_plan({"estimated_sigma": 30, "edge_density": 0.2,
                             "modality": "CT", "dynamic_range": 1.0})
-    assert plan[0]["args"]["method"] == "sa-bm3d"
+    expected = "dncnn" if dncnn.is_available() else "vt-bm3d"
+    assert plan[0]["args"]["method"] == expected
     assert plan[-1]["tool"] == "evaluate_quality"
+
+    plan_strong = rule_based_plan({"estimated_sigma": 40, "edge_density": 0.2,
+                                   "modality": "CT", "dynamic_range": 1.0})
+    assert plan_strong[0]["args"]["method"] == "vt-bm3d"
 
 
 def test_coordinator_end_to_end(phantom, noisy):
