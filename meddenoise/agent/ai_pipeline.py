@@ -136,6 +136,7 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
                        "text": "AI判定质量可进一步提升, 调整参数重试: "
                                + json.dumps(adj, ensure_ascii=False)}
                 adj.setdefault("sigma", plan.get("sigma"))
+                adj.setdefault("reason", "AI反思后微调的重试方案")
                 output2, denoised2, ev2 = _execute(noisy, reference, adj)
                 history.append({"plan": adj, "evaluation": ev2})
                 if ev2.get("psnr", ev2.get("laplacian_sharpness", 0)) >= \

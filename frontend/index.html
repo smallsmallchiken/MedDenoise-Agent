@@ -373,6 +373,9 @@ createApp({
     fmtArgs(a){ return Object.entries(a||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
     fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
     mdToHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/^#{1,4}\s*(.+)$/gm,'<b style="color:var(--accent)">$1</b>')
+      .replace(/^---+$/gm,'').replace(/^[-*]\s+/gm,'• ')
+      .replace(/^>\s?/gm,'')
       .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>')
       .replace(/^\|(.+)\|$/gm,(l)=>l)
       .split('\n').map(l=>{
