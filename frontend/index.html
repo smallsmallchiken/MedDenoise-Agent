@@ -195,7 +195,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <div style="font-size:14px;line-height:2">
           <span class="tag">模态: {{result.perception.modality}}</span>
           <span class="tag">噪声σ: {{result.perception.estimated_sigma}}</span>
-          <span class="tag">噪声等级: {{result.perception.noise_level}}</span>
+          <span class="tag">噪声等级: {{zhVal(result.perception.noise_level)}}</span>
           <span class="tag">边缘密度: {{result.perception.edge_density}}</span>
           <span class="tag">纹理复杂度: {{result.perception.texture_complexity}}</span>
           <span class="tag">规划器: {{result.planner==='llm'?'LLM智能规划':'专家规则'}}</span>
@@ -337,8 +337,8 @@ createApp({
       laplacian_sharpness:'清晰度',gradient_energy:'梯度能量',entropy:'信息熵',
       estimated_sigma:'估计噪声σ',noise_level:'噪声等级',modality:'模态',edge_density:'边缘密度',
       texture_complexity:'纹理复杂度',mean_coherence:'平均相干性',dynamic_range:'动态范围'})[k]||k; },
-    zhVal(v){ return v==='ok'?'成功':v; },
-    fmtArgs(a){ return Object.entries(a||{}).map(([k,v])=>`${this.zhKey(k)}: ${v}`).join(' · '); },
+    zhVal(v){ return ({ok:'成功',high:'高',medium:'中',low:'低',unsharp:'锐化(Unsharp)',clahe:'对比度(CLAHE)',gamma:'伽马校正'})[v]||v; },
+    fmtArgs(a){ return Object.entries(a||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
     fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
     mdToHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
       .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>')
