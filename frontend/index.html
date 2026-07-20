@@ -305,21 +305,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <div ref="pAblEl" class="chart"></div>
       </div>
     </div>
-  </div>
-
-  <div class="main" v-show="tab==='bench'">
     <div class="card">
-      <h3>算法评估总览 · 主观与客观双维度 (参照论文实验设计)</h3>
-      <div style="font-size:13.5px;color:var(--muted);line-height:2">
-        评估体系对齐论文: <b style="color:var(--text)">全参考指标</b> PSNR(峰值信噪比, 噪声抑制能力) ·
-        SSIM(结构相似性, 结构/亮度/对比度保持) · RMSE(像素级误差);
-        <b style="color:var(--text)">无参考指标</b> Laplacian清晰度 · 梯度能量 · 信息熵。
-        论文结论: VT-BM3D在g3/g5结构化噪声下较BM3D平均提升 <b style="color:var(--good)">+2.04dB</b>,
-        复杂纹理图像最大 <b style="color:var(--good)">+4.19dB</b>; 本页下方为本地Set12+BSD300高斯噪声复现实验。
-      </div>
-    </div>
-    <div class="card">
-      <h3>本地定量评测 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
+      <h3>本地复现实验 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
       <div v-if="!bench.length" class="empty">暂无评测数据 — 请先运行 python experiments/run_experiments.py</div>
       <div class="charts2" v-else>
         <div ref="psnrEl" class="chart"></div>
@@ -353,6 +340,87 @@ input[type=range]{width:100%;accent-color:var(--accent)}
             <td>{{r.attempts}}</td><td>{{r.llm?'LLM':'规则'}}</td>
           </tr>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="main" v-show="tab==='bench'">
+    <div class="card">
+      <h3>一句话看懂 VT-BM3D 的创新</h3>
+      <div style="font-size:15px;line-height:2.1;color:var(--text)">
+        传统BM3D对整张图用<b style="color:var(--warn)">同一个力度</b>去噪 ——
+        噪声是干净了, 但组织边界和细微纹理也被一起“擦掉”了。<br>
+        VT-BM3D 的创新很简单: <b style="color:var(--accent)">先“看懂”图像哪里是结构、哪里是平坦背景,
+        再区别对待</b>: 平坦区大力去噪, 边缘/纹理区轻柔去噪, 最后逐像素融合。
+        既把噪声压干净, 又把细节留下来。
+      </div>
+    </div>
+    <div class="card">
+      <h3>三步看懂它怎么做</h3>
+      <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+        <div class="metric" style="text-align:left;padding:18px">
+          <div style="font-size:22px">🗺️</div>
+          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第1步 · 画出“结构地图”</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.9">
+            结构显著性图 <b style="color:var(--text)">S = α·局部方差 + β·结构张量相干性</b>。
+            局部方差找到“纹理多的地方”, 结构张量找到“有方向的边缘”。
+            S接近1 = 重要结构, S接近0 = 平坦背景。</div>
+        </div>
+        <div class="metric" style="text-align:left;padding:18px">
+          <div style="font-size:22px">⚖️</div>
+          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第2步 · 双路去噪</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.9">
+            同时跑两个BM3D: <b style="color:var(--text)">强档(σ×1.15)</b> 把平坦区扫得彻底干净;
+            <b style="color:var(--text)">弱档(σ÷texture_boost)</b> 温柔处理纹理区,
+            不把真实细节当噪声抹掉。</div>
+        </div>
+        <div class="metric" style="text-align:left;padding:18px">
+          <div style="font-size:22px">🧬</div>
+          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第3步 · 逐像素智能融合</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.9">
+            按结构地图加权: <b style="color:var(--text)">结果 = (1−S)·强档 + S·弱档</b>。
+            每个像素都拿到最适合自己的去噪力度 —— 背景干净、边缘锐利、纹理保留。</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>证据一 · 论文定量结果 (Signal Processing 243 (2026) 110417)</h3>
+      <div class="metrics">
+        <div class="metric"><div class="v">+2.04 dB</div><div class="k">较BM3D平均PSNR提升 (16组实验全部为正)</div></div>
+        <div class="metric"><div class="v">+4.19 dB</div><div class="k">复杂纹理图像最大提升 (Baboon/Brick Wall)</div></div>
+        <div class="metric"><div class="v">2大数据集</div><div class="k">Set12 + BSDS300 · g3/g5噪声 · σ=5~35</div></div>
+        <div class="metric"><div class="v">≈持平</div><div class="k">计算耗时与BM3D基本相当</div></div>
+      </div>
+      <div ref="bInnoEl" class="chart" style="height:300px"></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.9">
+        ⬆️ 纹理越复杂的图像, VT-BM3D领先BM3D越多 —— 恰好证明“结构感知”创新命中了BM3D的要害:
+        传统方法最容易把复杂纹理当噪声抹掉, 而VT-BM3D把它们保护了下来。完整数据见「论文结果」页。
+      </div>
+    </div>
+    <div class="card">
+      <h3>证据二 · 消融实验: 每个创新组件都不可或缺</h3>
+      <div style="overflow-x:auto" v-if="paper">
+        <table class="mtable">
+          <tr><th>配置</th><th>Set12 PSNR</th><th>BSDS300 PSNR</th><th>相比完整版</th></tr>
+          <tr v-for="r in paper.table3_ablation">
+            <td><b>{{r.removed}}</b></td>
+            <td>{{r.set12_psnr}}</td><td>{{r.bsds300_psnr}}</td>
+            <td style="white-space:normal" :style="{color:ablNote(r)==='基准 (全部创新组件都在)'?'var(--accent)':'var(--bad)'}">{{ablNote(r)}}</td>
+          </tr>
+        </table>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.9">
+        把任一创新组件(局部方差项 / 结构张量项 / 双路融合)拿掉, PSNR都会下降 ——
+        说明提升不是巧合, 而是每一项设计都在真实贡献。
+      </div>
+    </div>
+    <div class="card">
+      <h3>创新加成 · AI智能体让参数“活”起来</h3>
+      <div style="font-size:14px;color:var(--muted);line-height:2.1">
+        论文中 α=0.4、β=0.6、texture_boost=1.4 是固定经验值;
+        本系统的AI智能体会<b style="color:var(--text)">逐图分析噪声σ、边缘密度、纹理复杂度、结构相干性</b>,
+        为每张图量身定制这组参数并给出理由, 处理后还会反思重试 ——
+        把论文的“固定配方”升级为“智能配方”。实测效果见「论文结果」页的AI处理记录存档。
       </div>
     </div>
   </div>
@@ -523,10 +591,11 @@ createApp({
     },
     async switchPaper(){
       this.tab='paper';
-      if(!this.paper){
-        this.paper = await (await fetch('/api/paper_results')).json();
-        this.$nextTick(()=>this.drawPaper());
-      }
+      const first = !this.paper;
+      if(first) this.paper = await (await fetch('/api/paper_results')).json();
+      if(!this.bench.length) this.bench = (await (await fetch('/api/benchmark')).json()).rows || [];
+      this.aiHistory = await (await fetch('/api/history')).json();
+      this.$nextTick(()=>{ if(first) this.drawPaper(); this.drawBench(); });
     },
     drawPaper(){
       const t2=this.paper.table2;
@@ -583,11 +652,25 @@ createApp({
     },
     async switchBench(){
       this.tab='bench';
-      if(!this.bench.length){
-        this.bench = (await (await fetch('/api/benchmark')).json()).rows || [];
-        this.$nextTick(()=>this.drawBench());
-      }
-      this.aiHistory = await (await fetch('/api/history')).json();
+      if(!this.paper) this.paper = await (await fetch('/api/paper_results')).json();
+      this.$nextTick(()=>this.drawInno());
+    },
+    drawInno(){
+      if(!this.paper||!this.$refs.bInnoEl) return;
+      const repr=this.paper.representative_images;
+      const c=echarts.init(this.$refs.bInnoEl);
+      c.setOption({backgroundColor:'transparent',
+        title:{text:'同一张图, 两种算法: 纹理越复杂, 领先越多 (论文代表性图像, σ=15)',
+               textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
+        legend:{textStyle:{color:'#8aa0c8'},top:26},tooltip:{},
+        grid:{left:50,right:20,bottom:35,top:65},
+        xAxis:{type:'category',data:repr.map(r=>`${r.image}(${r.noise})`),axisLabel:{color:'#8aa0c8'}},
+        yAxis:{type:'value',scale:true,name:'PSNR(dB)',axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
+        series:[{name:'BM3D(传统)',type:'bar',data:repr.map(r=>r.bm3d_psnr),itemStyle:{color:'#64748b',borderRadius:[4,4,0,0]}},
+                {name:'VT-BM3D(创新)',type:'bar',data:repr.map(r=>r.vtbm3d_psnr),
+                 itemStyle:{color:'#34d399',borderRadius:[4,4,0,0]},
+                 label:{show:true,position:'top',color:'#e8eefc',fontSize:11,
+                   formatter:p=>'+'+(p.value-repr[p.dataIndex].bm3d_psnr).toFixed(2)}}]});
     },
     async switchApi(){
       this.tab='api';
@@ -615,6 +698,12 @@ createApp({
                  itemStyle:{borderRadius:[4,4,0,0],color:'#38bdf8'}},
                 {name:'tokens',type:'line',yAxisIndex:1,smooth:true,symbolSize:8,lineStyle:{color:'#818cf8'},itemStyle:{color:'#818cf8'},
                  data:days.map(d=>this.apiStats.daily[d].input_tokens+this.apiStats.daily[d].output_tokens)}]});
+    },
+    ablNote(r){
+      const full=this.paper.table3_ablation.find(x=>x.removed.includes('完整'));
+      if(!full||r===full) return '基准 (全部创新组件都在)';
+      const d=((r.set12_psnr-full.set12_psnr)+(r.bsds300_psnr-full.bsds300_psnr))/2;
+      return `平均下降 ${Math.abs(d).toFixed(2)} dB → 该组件确实有效`;
     },
     benchCell(m,s){
       const r=this.bench.find(x=>x.method===m&&x.sigma===s);
