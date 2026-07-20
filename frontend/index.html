@@ -10,8 +10,12 @@
 :root{
   --bg:#0b1220;--panel:#111a2e;--panel2:#16223c;--line:#233250;
   --text:#e8eefc;--muted:#8aa0c8;--accent:#38bdf8;--accent2:#818cf8;
-  --ok:#34d399;--warn:#fbbf24;
+  --ok:#34d399;--warn:#fbbf24;--good:#34d399;--bad:#f87171;
 }
+.mtable{width:100%;border-collapse:collapse;font-size:12.5px}
+.mtable th,.mtable td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.mtable th{color:var(--accent);font-weight:600;background:rgba(56,189,248,.06)}
+.mtable td{color:#b9c8e8}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:radial-gradient(1200px 600px at 80% -10%,#16305c 0%,var(--bg) 55%);
   color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;min-height:100vh}
@@ -127,14 +131,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <div class="logo">🏥</div>
     <div>
       <h1>MedDenoise-Agent</h1>
-      <div class="sub">基于智能Agent的医学影像智能去噪与质量增强系统 · VT-BM3D + DnCNN</div>
+      <div class="sub">基于智能Agent的医学影像智能去噪与质量增强系统 · 论文VT-BM3D算法 × AI智能体调参</div>
     </div>
     <div class="tabs">
       <div class="tab" :class="{active:tab==='run'}" @click="tab='run'">🤖 智能处理</div>
       <div class="tab" :class="{active:tab==='chat'}" @click="switchChat">💬 智能对话</div>
       <div class="tab" :class="{active:tab==='paper'}" @click="switchPaper">📄 论文结果</div>
       <div class="tab" :class="{active:tab==='bench'}" @click="switchBench">📊 算法评测</div>
-      <div class="tab" :class="{active:tab==='arch'}" @click="tab='arch'">🧩 系统架构</div>
+      <div class="tab" :class="{active:tab==='api'}" @click="switchApi">📡 API监控</div>
     </div>
   </div>
 
@@ -160,8 +164,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
           <span v-else>🚀 启动AI智能体</span>
         </button>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">
-          AI智能体将分析图像特征, 并对VT-BM3D等算法智能调参(α/β/texture_boost),
-          处理后自主反思优化, 全过程思考可见。
+          AI智能体将给出分析意见与处理思路, 对论文VT-BM3D算法详细调参
+          (σ/α/β/texture_boost), 执行后给出结果分析并存档, 全过程思考可见。
         </div>
       </div>
 
@@ -182,12 +186,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
           <div class="typing" v-if="running">AI正在思考…</div>
         </div>
         <div class="plancard" v-if="plan">
-          <div class="think-title">⚙️ AI调参方案</div>
-          <span class="tag">算法: {{plan.method}}</span>
-          <span class="tag">噪声σ: {{Number(plan.sigma).toFixed(1)}}</span>
+          <div class="think-title">⚙️ AI调参方案 · VT-BM3D (论文结构感知协同滤波)</div>
+          <span class="tag">去噪σ: {{Number(plan.sigma).toFixed(1)}}</span>
           <span class="tag" v-for="(v,k) in (plan.params||{})">{{k}}: {{v}}</span>
           <span class="tag" v-if="(plan.enhance||[]).length">增强: {{plan.enhance.map(zhVal).join(' + ')}}</span>
-          <div style="font-size:13px;color:var(--muted);margin-top:8px">💡 {{plan.reason}}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.9">
+            <div v-for="(r,k) in (plan.param_rationale||{})">💡 <b style="color:#b9c8e8">{{k}}</b>: {{r}}</div>
+            <div v-if="plan.expectation">🎯 预期: {{plan.expectation}}</div>
+            <div v-if="plan.reason">💡 {{plan.reason}}</div>
+          </div>
         </div>
         <template v-if="result">
           <div class="imgs">
@@ -239,7 +246,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
             <div class="no">{{i+1}}</div>
             <div>
               <div><code>{{i===0?'初次方案':'反思重试'}}</code>
-                <span style="color:var(--muted)">{{fmtArgs({method:h.plan.method,sigma:Number(h.plan.sigma).toFixed(1),...(h.plan.params||{})})}}</span></div>
+                <span style="color:var(--muted)">{{fmtArgs({sigma:Number(h.plan.sigma).toFixed(1),...(h.plan.params||{})})}}</span></div>
               <div class="res">{{fmtRes(h.evaluation)}}</div>
             </div>
           </div>
@@ -302,45 +309,91 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
   <div class="main" v-show="tab==='bench'">
     <div class="card">
-      <h3>算法评测 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
+      <h3>算法评估总览 · 主观与客观双维度 (参照论文实验设计)</h3>
+      <div style="font-size:13.5px;color:var(--muted);line-height:2">
+        评估体系对齐论文: <b style="color:var(--text)">全参考指标</b> PSNR(峰值信噪比, 噪声抑制能力) ·
+        SSIM(结构相似性, 结构/亮度/对比度保持) · RMSE(像素级误差);
+        <b style="color:var(--text)">无参考指标</b> Laplacian清晰度 · 梯度能量 · 信息熵。
+        论文结论: VT-BM3D在g3/g5结构化噪声下较BM3D平均提升 <b style="color:var(--good)">+2.04dB</b>,
+        复杂纹理图像最大 <b style="color:var(--good)">+4.19dB</b>; 本页下方为本地Set12+BSD300高斯噪声复现实验。
+      </div>
+    </div>
+    <div class="card">
+      <h3>本地定量评测 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
       <div v-if="!bench.length" class="empty">暂无评测数据 — 请先运行 python experiments/run_experiments.py</div>
       <div class="charts2" v-else>
         <div ref="psnrEl" class="chart"></div>
         <div ref="ssimEl" class="chart"></div>
       </div>
       <div ref="barEl" class="chart" v-if="bench.length"></div>
+      <div v-if="bench.length" style="overflow-x:auto;margin-top:14px">
+        <table class="mtable">
+          <tr><th>算法</th><th v-for="s in benchSigmas">σ={{s}} PSNR/SSIM</th></tr>
+          <tr v-for="m in benchMethods">
+            <td><b>{{m}}</b></td>
+            <td v-for="s in benchSigmas">{{benchCell(m,s)}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>AI处理记录存档 · 供对话Agent引用分析</h3>
+      <div v-if="!aiHistory.length" class="empty">暂无处理记录 — 在「智能处理」页运行AI智能体后, 结果将自动存档到这里</div>
+      <div v-else style="overflow-x:auto">
+        <table class="mtable">
+          <tr><th>#</th><th>时间</th><th>图像</th><th>加噪σ</th><th>去噪σ</th><th>alpha</th><th>beta_tensor</th><th>texture_boost</th><th>PSNR</th><th>SSIM</th><th>尝试</th><th>规划</th></tr>
+          <tr v-for="r in aiHistory">
+            <td>{{r.id}}</td><td>{{r.time}}</td><td>{{r.source}}</td>
+            <td>{{r.noise_sigma??'-'}}</td><td>{{r.plan&&r.plan.sigma?Number(r.plan.sigma).toFixed(1):'-'}}</td>
+            <td>{{r.plan&&r.plan.params?r.plan.params.alpha??'-':'-'}}</td>
+            <td>{{r.plan&&r.plan.params?r.plan.params.beta_tensor??'-':'-'}}</td>
+            <td>{{r.plan&&r.plan.params?r.plan.params.texture_boost??'-':'-'}}</td>
+            <td><b style="color:var(--good)">{{r.evaluation?r.evaluation.psnr??'-':'-'}}</b></td>
+            <td>{{r.evaluation?r.evaluation.ssim??'-':'-'}}</td>
+            <td>{{r.attempts}}</td><td>{{r.llm?'LLM':'规则'}}</td>
+          </tr>
+        </table>
+      </div>
     </div>
   </div>
 
-  <div class="main" v-show="tab==='arch'">
+  <div class="main" v-show="tab==='api'">
     <div class="card">
-      <h3>多Agent协作架构</h3>
-      <pre style="font-size:13px;line-height:1.7;color:#9fb6e0;overflow:auto">
-              ┌───────────────────────────────────────┐
-              │        协调Agent (Coordinator)         │
-              │   感知 → 决策 → 执行 → 评估 自主闭环     │
-              └──────────────────┬────────────────────┘
-     ┌───────────┬──────────────┼──────────────┬───────────┐
-     ▼           ▼              ▼              ▼           │ 质量不达标
-┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐        │ 反思重规划
-│ 感知Agent │ │ 决策Agent │ │ 执行Agent │ │ 评估Agent │────────┘
-│ 噪声估计  │ │ LLM/规则  │ │ 工具调用  │ │ PSNR/SSIM │
-│ 结构张量  │ │ +Skills   │ │ 状态维护  │ │ 无参考指标 │
-│ 模态识别  │ │ +Memory   │ │           │ │           │
-└─────────┘ └──────────┘ └────┬─────┘ └──────────┘
-                              ▼
-        ┌──────────────────────────────────────────┐
-        │        工具层 (Tool Registry)              │
-        │ 去噪: Gaussian/Median/NLM/Wavelet/BM3D/    │
-        │       VT-BM3D(结构感知)/DnCNN(深度学习)     │
-        │ 增强: CLAHE / Unsharp / Gamma              │
-        │ 评价: PSNR / SSIM / RMSE / 无参考指标        │
-        └──────────────────────────────────────────┘</pre>
-      <div style="font-size:14px;color:var(--muted);line-height:1.9;margin-top:10px">
-        <b style="color:var(--text)">核心创新 · VT-BM3D:</b> 以局部方差(α=0.4)与结构张量相干性(β=0.6)构建结构显著性图，
-        平坦区强去噪、边缘/纹理区弱去噪后逐像素融合，兼顾PSNR与细节保留；<br>
-        <b style="color:var(--text)">深度学习 · DnCNN:</b> 17层残差卷积神经网络(PyTorch)，学习预测噪声残差，σ=25水平去噪效果最佳；<br>
-        <b style="color:var(--text)">智能Agent:</b> 双模规划器(LLM/专家规则)、技能知识库(SKILL.md)、案例记忆、反思式迭代优化。
+      <h3>LLM 接入状态</h3>
+      <div style="font-size:14px;line-height:2.2" v-if="apiStats">
+        <span class="tag">模型: {{apiStats.model}}</span>
+        <span class="tag">接入点: {{apiStats.base_url}}</span>
+        <span class="tag" :style="{color:apiStats.configured?'var(--good)':'var(--bad)'}">
+          {{apiStats.configured?'✓ API Key已配置(服务器端)':'✗ 未配置API Key'}}</span>
+        <span class="tag" v-if="modelCheck" :style="{color:modelCheck.reachable?'var(--good)':'var(--bad)'}">
+          {{modelCheck.reachable?('✓ 模型可达 · 延迟 '+modelCheck.latency_s+'s'):('✗ '+modelCheck.detail)}}</span>
+      </div>
+      <button class="btn" style="max-width:260px" :disabled="checking" @click="checkModel">
+        <span v-if="checking"><span class="spinner"></span>检测中…</span>
+        <span v-else>📡 检测模型可达性</span>
+      </button>
+    </div>
+    <div class="card" v-if="apiStats">
+      <h3>API 使用统计</h3>
+      <div class="metrics">
+        <div class="metric"><div class="v">{{apiStats.today.calls}}</div><div class="k">今日调用次数</div></div>
+        <div class="metric"><div class="v">{{apiStats.today.input_tokens+apiStats.today.output_tokens}}</div><div class="k">今日消耗 tokens</div></div>
+        <div class="metric"><div class="v">{{apiStats.total.calls}}</div><div class="k">累计调用次数</div></div>
+        <div class="metric"><div class="v">{{apiStats.total.input_tokens+apiStats.total.output_tokens}}</div><div class="k">累计消耗 tokens</div></div>
+      </div>
+      <div ref="apiChartEl" class="chart" style="height:260px"></div>
+    </div>
+    <div class="card" v-if="apiStats && apiStats.recent.length">
+      <h3>最近调用记录</h3>
+      <div style="overflow-x:auto">
+        <table class="mtable">
+          <tr><th>时间</th><th>用途</th><th>输入 tokens</th><th>输出 tokens</th><th>耗时(s)</th><th>状态</th></tr>
+          <tr v-for="r in apiStats.recent.slice(0,15)">
+            <td>{{r.time}}</td><td>{{r.purpose}}</td><td>{{r.input_tokens}}</td>
+            <td>{{r.output_tokens}}</td><td>{{r.latency_s}}</td>
+            <td :style="{color:r.ok?'var(--good)':'var(--bad)'}">{{r.ok?'成功':'失败'}}</td>
+          </tr>
+        </table>
       </div>
     </div>
   </div>
@@ -355,12 +408,17 @@ createApp({
     tab:'run', samples:[], sampleId:'', file:null, addNoise:true, sigma:25,
     running:false, stageIdx:-1, result:null, bench:[], paper:null,
     thoughts:[], plan:null, usedLLM:false,
+    aiHistory:[], apiStats:null, modelCheck:null, checking:false,
     chatLog:[], chatText:'', chatBusy:false, chatInit:false,
-    quickQs:['用σ=25处理Set12第5张','介绍一下VT-BM3D','DnCNN是什么','论文里提升了多少','σ=25下哪个算法最好','你是怎么决策的'],
-    stages:[{name:'感知分析',icon:'🔍'},{name:'AI智能调参',icon:'🧠'},{name:'执行处理',icon:'⚙️'},{name:'评估与反思',icon:'📈'}]
+    quickQs:['用σ=25处理Set12第5张','介绍一下VT-BM3D','分析我最近的处理记录','论文里提升了多少','α和beta_tensor怎么调','你是怎么决策的'],
+    stages:[{name:'感知分析',icon:'🔍'},{name:'AI分析与思路',icon:'🧠'},{name:'AI调参方案',icon:'🎛️'},{name:'执行VT-BM3D',icon:'⚙️'},{name:'结果分析',icon:'📈'}]
   }},
   async mounted(){
     this.samples = await (await fetch('/api/samples')).json();
+  },
+  computed:{
+    benchMethods(){ return [...new Set(this.bench.map(r=>r.method))].filter(m=>m!=='noisy'); },
+    benchSigmas(){ return [...new Set(this.bench.map(r=>r.sigma))]; }
   },
   methods:{
     onFile(e){ this.file = e.target.files[0] || null; },
@@ -434,7 +492,7 @@ createApp({
             if(!chunk.startsWith('data: ')) continue;
             const ev=JSON.parse(chunk.slice(6));
             if(ev.type==='stage'){
-              this.stageIdx = ({'感知分析':0,'AI特征分析与智能调参':1,'执行处理':2,'质量评估与AI反思':3})[ev.stage] ?? this.stageIdx;
+              this.stageIdx = ({'感知分析':0,'AI分析意见与处理思路':1,'AI调参方案':2,'执行VT-BM3D':3,'处理结果分析':4})[ev.stage] ?? this.stageIdx;
             }
             else if(ev.type==='thinking'){ this.thoughts.push({stage:ev.stage,text:ev.text}); this.scrollThink(); }
             else if(ev.type==='decision'){ this.plan = ev.plan; this.usedLLM = !!ev.llm; }
@@ -445,7 +503,7 @@ createApp({
           }
         }
       } catch(e){ alert('处理出错: '+e); }
-      finally { this.running=false; this.stageIdx=4; }
+      finally { this.running=false; this.stageIdx=5; }
     },
     scrollThink(){ this.$nextTick(()=>{ const el=document.querySelector('.think'); if(el) el.scrollTop=el.scrollHeight; }); },
     drawRadar(){
@@ -529,6 +587,38 @@ createApp({
         this.bench = (await (await fetch('/api/benchmark')).json()).rows || [];
         this.$nextTick(()=>this.drawBench());
       }
+      this.aiHistory = await (await fetch('/api/history')).json();
+    },
+    async switchApi(){
+      this.tab='api';
+      this.apiStats = await (await fetch('/api/api_stats')).json();
+      this.$nextTick(()=>this.drawApi());
+    },
+    async checkModel(){
+      this.checking=true;
+      try{ this.modelCheck = await (await fetch('/api/check_model',{method:'POST'})).json(); }
+      finally{ this.checking=false; this.switchApi(); }
+    },
+    drawApi(){
+      if(!this.apiStats||!this.$refs.apiChartEl) return;
+      const days=Object.keys(this.apiStats.daily).sort().slice(-14);
+      const c=echarts.init(this.$refs.apiChartEl);
+      c.setOption({backgroundColor:'transparent',
+        title:{text:'每日 API 调用与 tokens',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
+        legend:{textStyle:{color:'#8aa0c8'},top:24},tooltip:{trigger:'axis'},
+        grid:{left:55,right:55,bottom:35,top:60},
+        xAxis:{type:'category',data:days,axisLabel:{color:'#8aa0c8'}},
+        yAxis:[{type:'value',name:'调用次数',axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
+               {type:'value',name:'tokens',axisLabel:{color:'#8aa0c8'},splitLine:{show:false}}],
+        series:[{name:'调用次数',type:'bar',barWidth:'40%',
+                 data:days.map(d=>this.apiStats.daily[d].calls),
+                 itemStyle:{borderRadius:[4,4,0,0],color:'#38bdf8'}},
+                {name:'tokens',type:'line',yAxisIndex:1,smooth:true,symbolSize:8,lineStyle:{color:'#818cf8'},itemStyle:{color:'#818cf8'},
+                 data:days.map(d=>this.apiStats.daily[d].input_tokens+this.apiStats.daily[d].output_tokens)}]});
+    },
+    benchCell(m,s){
+      const r=this.bench.find(x=>x.method===m&&x.sigma===s);
+      return r?(`${(+r.psnr).toFixed(2)} / ${(+r.ssim).toFixed(4)}`):'-';
     },
     drawBench(){
       if(!this.bench.length) return;

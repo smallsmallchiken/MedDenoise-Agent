@@ -22,7 +22,7 @@ from skimage.util import img_as_float
 
 from meddenoise import data as med_data
 from meddenoise.agent import llm
-from meddenoise.agent.ai_pipeline import run_ai_pipeline
+from meddenoise.agent.ai_pipeline import load_records, run_ai_pipeline
 from meddenoise.agent.chat import ChatAgent
 from meddenoise.agent.coordinator import Coordinator
 from meddenoise.tools import metrics
@@ -118,8 +118,10 @@ async def ai_process(file: UploadFile | None = File(None),
     if file is not None and file.filename:
         raw = skio.imread(io.BytesIO(await file.read()))
         image = _prepare(raw)
+        source = file.filename
     elif sample_id:
         image = _load_sample(sample_id)
+        source = sample_id
     else:
         return {"error": "请上传图像或选择示例"}
 
@@ -130,7 +132,8 @@ async def ai_process(file: UploadFile | None = File(None),
         noisy = med_data.add_gaussian_noise(image, sigma=sigma)
 
     def stream():
-        for event in run_ai_pipeline(noisy, reference):
+        for event in run_ai_pipeline(noisy, reference, source=source,
+                                     noise_sigma=sigma if add_noise else None):
             if event["type"] == "result":
                 payload = {
                     "type": "result",
@@ -155,15 +158,47 @@ async def ai_process(file: UploadFile | None = File(None),
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
+@app.get("/api/history")
+def get_history():
+    return list(reversed(load_records()))[:30]
+
+
+@app.get("/api/api_stats")
+def api_stats():
+    return llm.usage_stats()
+
+
+@app.post("/api/check_model")
+def check_model():
+    return llm.check_reachability()
+
+
 CHAT_SYSTEM = (
     "你是「MedDenoise-Agent」医学影像智能去噪系统的AI助手, 精通VT-BM3D论文"
     "(Peng et al., Signal Processing 243 (2026) 110417: 结构感知+噪声自适应联合优化, "
-    "相对BM3D平均PSNR提升2.04dB, 复杂纹理最大4.19dB)、DnCNN深度学习去噪与传统方法。"
-    "本系统: 多Agent架构(感知→AI调参→执行→反思), 支持Set12/BSD300数据集, "
-    "本地实测σ=25时 DnCNN 29.58dB > BM3D 29.19 > VT-BM3D 29.03 (纯高斯噪声)。"
+    "相对BM3D平均PSNR提升2.04dB, 复杂纹理最大4.19dB)。"
+    "本系统主流程只使用论文VT-BM3D算法: 结构显著性图 S=α·局部方差+β·结构张量相干性 "
+    "指导强/弱BM3D逐像素融合; AI智能体负责分析图像特征并对σ/alpha/beta_tensor/"
+    "texture_boost详细调参, 执行后给出结果分析并存档。支持Set12/BSD300数据集。"
+    "回答可引用下方的最近处理记录进行分析对比。"
     "用简洁专业的中文回答, 可用Markdown, 专业名词(PSNR/SSIM等)保留英文。"
     "若用户想处理图像, 建议其直接说「用σ=25处理Set12第5张」这样的指令。"
 )
+
+
+def _history_context() -> str:
+    records = load_records()[-5:]
+    if not records:
+        return ""
+    lines = ["\n【本系统最近的VT-BM3D处理记录(可供引用分析)】"]
+    for r in records:
+        ev, plan = r.get("evaluation", {}), r.get("plan", {})
+        lines.append(
+            f"#{r.get('id')} {r.get('time')} 图像={r.get('source')} "
+            f"加噪σ={r.get('noise_sigma')} 调参={json.dumps(plan.get('params', {}))} "
+            f"去噪σ={plan.get('sigma')} PSNR={ev.get('psnr', '-')} "
+            f"SSIM={ev.get('ssim', '-')} 尝试次数={r.get('attempts')}")
+    return "\n".join(lines)
 
 
 @app.post("/api/chat")
@@ -176,7 +211,7 @@ async def chat(message: str = Form(...), history: str = Form("[]")):
         except json.JSONDecodeError:
             msgs = []
         msgs.append({"role": "user", "content": message})
-        reply = llm.llm_chat(CHAT_SYSTEM, msgs)
+        reply = llm.llm_chat(CHAT_SYSTEM + _history_context(), msgs)
         if reply:
             return {"reply": reply, "llm": True}
     response = {"reply": out["reply"]}

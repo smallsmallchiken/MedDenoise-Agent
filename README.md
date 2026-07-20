@@ -7,8 +7,8 @@
 ## ✨ 系统特色
 
 1. **VT-BM3D结构感知去噪算法** (论文核心算法的Python实现): 利用局部方差(α=0.4)+结构张量相干性(β=0.6)构建结构显著性图, 平坦区强去噪、边缘/纹理区弱去噪(texture_boost=1.4)后逐像素融合, 兼顾PSNR与细节保留
-2. **深度学习去噪 DnCNN** (PyTorch): 17层残差卷积神经网络, 预训练权重自动下载, σ=25水平去噪效果最佳(Set12上PSNR提升可达10dB)
-3. **AI智能体调参流水线** (主模块): LLM分析图像特征(噪声σ/纹理复杂度/结构相干性) → 对VT-BM3D的α/β/texture_boost等参数智能调参 → 执行 → 自主反思重试, AI思考过程实时流式展示(SSE); 无API Key时自动回退专家规则
+2. **AI智能体调参流水线** (主模块, 仅使用论文VT-BM3D算法): 输入图像 → AI分析意见与处理思路 → 详细调参方案(σ/α/β/texture_boost逐参数给出理由) → 执行VT-BM3D → 处理结果分析与反思重试 → 结果存档(data/results_history.json)供对话Agent引用; AI思考过程实时流式展示(SSE); 无API Key时自动回退专家规则
+3. **API监控页**: 今日/累计API调用次数与tokens统计、每日走势图、模型可达性检测与最近调用记录
 4. **双模规划器**: 支持LLM(Claude)智能规划, 无API Key时自动回退专家规则引擎, 离线可完整演示; 附技能知识库(SKILL.md)与案例记忆
 5. **标准数据集评测**: Set12 + BSD300数据集定量对比实验(PSNR/SSIM), 一键生成论文用表格与曲线图
 6. **美观展示前端**: Vue3 + ECharts 深色科技风仪表盘(处理流水线动画、指标卡片、雷达图、决策轨迹、论文结果可视化), 另附Gradio界面与CLI
@@ -43,7 +43,6 @@
 
 ```bash
 pip install -r requirements.txt
-python scripts/download_weights.py   # 下载DnCNN预训练权重(2.2MB)
 cp .env.example .env                 # 可选: 填入LLM API Key启用AI智能调参与LLM对话
 
 # 1. 启动展示前端 (推荐, http://localhost:8000)
@@ -118,7 +117,7 @@ MedDenoise-Agent/
 
 ## 📊 实验结果
 
-详见 `experiments/results/benchmark.md`, 包含7种算法(含VT-BM3D与DnCNN)在Set12+BSD300数据集、σ=15/25/35下的PSNR/SSIM/耗时对比、视觉对比图与指标曲线。
+详见 `experiments/results/benchmark.md`, 包含7种算法在Set12+BSD300数据集、σ=15/25/35下的PSNR/SSIM/耗时对比、视觉对比图与指标曲线; 前端「算法评测」页提供详细指标表与AI处理记录存档。
 
 ## 📚 参考
 

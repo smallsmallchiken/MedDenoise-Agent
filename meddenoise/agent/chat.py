@@ -158,7 +158,8 @@ class ChatAgent:
                 + "\n".join(lines)
                 + f"\n\n表现最好的是 **{best['method']}** ({best['psnr']}dB)。")}
 
-        if any(k in t for k in ("处理", "去噪", "试试", "跑一下", "运行", "演示")):
+        if any(k in t for k in ("处理", "去噪", "试试", "跑一下", "运行", "演示")) \
+                and (_parse_sample(t) is not None or _parse_sigma(t) is not None):
             sample = _parse_sample(t) or "set12_05"
             sigma = _parse_sigma(t) or 25.0
             return {
