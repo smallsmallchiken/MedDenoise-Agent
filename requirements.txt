@@ -1,0 +1,9 @@
+numpy
+scipy
+scikit-image
+opencv-python-headless
+matplotlib
+bm3d
+gradio
+pytest
+anthropic  # 可选: LLM规划器
