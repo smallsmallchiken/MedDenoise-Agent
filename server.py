@@ -18,8 +18,10 @@ from skimage import io as skio, transform
 from skimage.util import img_as_float
 
 from meddenoise import data as med_data
+from meddenoise.agent.chat import ChatAgent
 from meddenoise.agent.coordinator import Coordinator
 from meddenoise.tools import metrics
+from meddenoise.tools.registry import ToolExecutor
 
 ROOT = Path(__file__).resolve().parent
 SET12_DIR = ROOT / "data" / "datasets" / "Set12"
@@ -27,6 +29,7 @@ BENCHMARK_CSV = ROOT / "experiments" / "results" / "benchmark.csv"
 
 app = FastAPI(title="MedDenoise-Agent")
 coordinator = Coordinator(verbose=False)
+chat_agent = ChatAgent()
 
 
 def _to_b64(image: np.ndarray) -> str:
@@ -99,6 +102,39 @@ async def process(file: UploadFile | None = File(None),
     if reference is not None:
         response["reference_image"] = _to_b64(reference)
         response["noisy_metrics"] = metrics.full_reference_metrics(reference, image)
+    return response
+
+
+@app.post("/api/chat")
+async def chat(message: str = Form(...)):
+    out = chat_agent.reply(message)
+    response = {"reply": out["reply"]}
+    action = out.get("action")
+    if action and action["type"] == "process":
+        image = _load_sample(action["sample_id"])
+        noisy = med_data.add_gaussian_noise(image, sigma=action["sigma"])
+        if action.get("method"):
+            executor = ToolExecutor(noisy, image, action["sample_id"])
+            executor.execute("denoise_image",
+                             {"method": action["method"], "sigma": action["sigma"]})
+            evaluation = executor.execute("evaluate_quality", {})
+            output, trace = executor.current, executor.trace
+        else:
+            result = coordinator.process(noisy, image, action["sample_id"])
+            output, trace = result["output"], result["trace"]
+            evaluation = result["evaluation"]
+        noisy_m = metrics.full_reference_metrics(image, noisy)
+        used = [t["args"].get("method") for t in trace
+                if t["tool"] == "denoise_image"]
+        response["reply"] += (
+            f"\n\n处理完成! 使用算法 **{' + '.join(m for m in used if m)}**: \n"
+            f"- 噪声图 PSNR {noisy_m['psnr']}dB → 去噪后 **{evaluation.get('psnr', '-')}dB**\n"
+            f"- SSIM {noisy_m['ssim']} → **{evaluation.get('ssim', '-')}**")
+        response["images"] = [
+            {"label": "原始图像", "src": _to_b64(image)},
+            {"label": f"含噪输入 σ={action['sigma']:g}", "src": _to_b64(noisy)},
+            {"label": "Agent处理结果", "src": _to_b64(output)},
+        ]
     return response
 
 

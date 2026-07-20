@@ -78,6 +78,36 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .footer{text-align:center;color:var(--muted);font-size:12px;padding:26px 0}
+.filebtn{display:block;padding:10px 12px;border-radius:10px;border:1px dashed var(--line);
+  background:var(--panel2);color:var(--muted);font-size:14px;cursor:pointer;text-align:center;transition:.2s}
+.filebtn:hover{border-color:var(--accent);color:var(--text)}
+.chatwrap{display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:480px}
+.chatlog{flex:1;overflow-y:auto;padding:6px 4px;display:flex;flex-direction:column;gap:14px}
+.bubble{max-width:76%;padding:12px 16px;border-radius:14px;font-size:14px;line-height:1.8;
+  white-space:pre-wrap;word-break:break-word}
+.bubble.user{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#04121f;border-bottom-right-radius:4px;font-weight:500}
+.bubble.agent{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);
+  border-bottom-left-radius:4px}
+.bubble.agent b,.bubble.agent strong{color:var(--accent)}
+.bubble table{border-collapse:collapse;margin:6px 0;font-size:13px}
+.bubble th,.bubble td{border:1px solid var(--line);padding:4px 10px}
+.bubble .imgs3{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.bubble .imgs3 .ib{width:160px;text-align:center}
+.bubble .imgs3 img{width:100%;border-radius:8px}
+.bubble .imgs3 .lb{font-size:12px;color:var(--muted);margin-top:4px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0}
+.chip{font-size:13px;padding:6px 14px;border-radius:18px;cursor:pointer;
+  background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);color:var(--accent);transition:.2s}
+.chip:hover{background:rgba(56,189,248,.22)}
+.chatinput{display:flex;gap:10px;margin-top:6px}
+.chatinput input{flex:1;padding:13px 16px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:14px;outline:none}
+.chatinput input:focus{border-color:var(--accent)}
+.chatinput button{padding:0 26px;border:none;border-radius:12px;cursor:pointer;font-size:15px;
+  font-weight:700;color:#04121f;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.chatinput button:disabled{opacity:.55;cursor:wait}
+.typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:4px 8px}
 @media(max-width:900px){.grid{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -91,6 +121,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     </div>
     <div class="tabs">
       <div class="tab" :class="{active:tab==='run'}" @click="tab='run'">🤖 智能处理</div>
+      <div class="tab" :class="{active:tab==='chat'}" @click="switchChat">💬 智能对话</div>
       <div class="tab" :class="{active:tab==='paper'}" @click="switchPaper">📄 论文结果</div>
       <div class="tab" :class="{active:tab==='bench'}" @click="switchBench">📊 算法评测</div>
       <div class="tab" :class="{active:tab==='arch'}" @click="tab='arch'">🧩 系统架构</div>
@@ -102,7 +133,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <div class="card">
         <h3>输入配置</h3>
         <label>上传医学影像 (PNG/JPG)</label>
-        <input type="file" accept="image/*" @change="onFile">
+        <label class="filebtn">{{file?('已选择: '+file.name):'📁 点击选择图像文件'}}
+          <input type="file" accept="image/*" @change="onFile" style="display:none"></label>
         <label>或选择示例图像</label>
         <select v-model="sampleId">
           <option value="">-- 请选择 --</option>
@@ -176,11 +208,33 @@ input[type=range]{width:100%;accent-color:var(--accent)}
           <div class="step" v-for="(t,i) in result.trace">
             <div class="no">{{i+1}}</div>
             <div>
-              <div><code>{{t.tool}}</code> <span style="color:var(--muted)">{{fmtArgs(t.args)}}</span></div>
+              <div><code>{{toolName(t.tool)}}</code> <span style="color:var(--muted)">{{fmtArgs(t.args)}}</span></div>
               <div class="res">{{fmtRes(t.result)}}</div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main" v-show="tab==='chat'">
+    <div class="card chatwrap">
+      <h3>智能对话 · 用中文指挥去噪Agent</h3>
+      <div class="chatlog" ref="chatlog">
+        <div v-for="m in chatLog" class="bubble" :class="m.role">
+          <span v-html="m.html"></span>
+          <div class="imgs3" v-if="m.images">
+            <div class="ib" v-for="im in m.images"><img :src="im.src"><div class="lb">{{im.label}}</div></div>
+          </div>
+        </div>
+        <div class="typing" v-if="chatBusy">Agent正在思考与处理…</div>
+      </div>
+      <div class="chips">
+        <div class="chip" v-for="q in quickQs" @click="sendChat(q)">{{q}}</div>
+      </div>
+      <div class="chatinput">
+        <input v-model="chatText" :disabled="chatBusy" placeholder="例如: 用σ=25处理Set12第5张 / 介绍一下VT-BM3D" @keyup.enter="sendChat()">
+        <button :disabled="chatBusy" @click="sendChat()">发送</button>
       </div>
     </div>
   </div>
@@ -269,6 +323,8 @@ createApp({
   data(){return{
     tab:'run', samples:[], sampleId:'', file:null, addNoise:true, sigma:25,
     running:false, stageIdx:-1, result:null, bench:[], paper:null,
+    chatLog:[], chatText:'', chatBusy:false, chatInit:false,
+    quickQs:['用σ=25处理Set12第5张','介绍一下VT-BM3D','DnCNN是什么','论文里提升了多少','σ=25下哪个算法最好','你是怎么决策的'],
     stages:[{name:'感知分析',icon:'🔍'},{name:'智能决策',icon:'🧠'},{name:'执行处理',icon:'⚙️'},{name:'质量评估',icon:'📈'}]
   }},
   async mounted(){
@@ -276,8 +332,48 @@ createApp({
   },
   methods:{
     onFile(e){ this.file = e.target.files[0] || null; },
-    fmtArgs(a){ return Object.keys(a||{}).length ? JSON.stringify(a) : ''; },
-    fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${k}: ${v}`).join(' · '); },
+    toolName(t){ return ({analyze_image:'感知分析',denoise_image:'图像去噪',enhance_image:'质量增强',evaluate_quality:'质量评估'})[t]||t; },
+    zhKey(k){ return ({method:'算法',sigma:'噪声σ',status:'状态',psnr:'PSNR',ssim:'SSIM',rmse:'RMSE',
+      laplacian_sharpness:'清晰度',gradient_energy:'梯度能量',entropy:'信息熵',
+      estimated_sigma:'估计噪声σ',noise_level:'噪声等级',modality:'模态',edge_density:'边缘密度',
+      texture_complexity:'纹理复杂度',mean_coherence:'平均相干性',dynamic_range:'动态范围'})[k]||k; },
+    zhVal(v){ return v==='ok'?'成功':v; },
+    fmtArgs(a){ return Object.entries(a||{}).map(([k,v])=>`${this.zhKey(k)}: ${v}`).join(' · '); },
+    fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
+    mdToHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>')
+      .replace(/^\|(.+)\|$/gm,(l)=>l)
+      .split('\n').map(l=>{
+        if(/^\|.*\|$/.test(l)){
+          const cells=l.slice(1,-1).split('|').map(c=>c.trim());
+          if(cells.every(c=>/^-+$/.test(c))) return '';
+          return '<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>';
+        }
+        return l;
+      }).join('\n').replace(/(<tr>[\s\S]*<\/tr>)/,'<table>$1</table>').replace(/\n{2,}/g,'\n\n'); },
+    switchChat(){
+      this.tab='chat';
+      if(!this.chatInit){
+        this.chatInit=true;
+        this.chatLog.push({role:'agent',html:this.mdToHtml('你好! 我是医学影像去噪Agent。你可以直接用中文让我处理图像、讲解算法原理、查询论文结论与实验数据。试试下方的快捷提问, 或者直接输入。')});
+      }
+    },
+    async sendChat(preset){
+      const text=(preset||this.chatText).trim();
+      if(!text||this.chatBusy) return;
+      this.chatText='';
+      this.chatLog.push({role:'user',html:this.mdToHtml(text)});
+      this.chatBusy=true;
+      this.scrollChat();
+      try{
+        const fd=new FormData(); fd.append('message',text);
+        const res=await (await fetch('/api/chat',{method:'POST',body:fd})).json();
+        this.chatLog.push({role:'agent',html:this.mdToHtml(res.reply),images:res.images||null});
+      }catch(e){
+        this.chatLog.push({role:'agent',html:'抱歉, 处理出错了, 请重试。'});
+      }finally{ this.chatBusy=false; this.scrollChat(); }
+    },
+    scrollChat(){ this.$nextTick(()=>{ const el=this.$refs.chatlog; if(el) el.scrollTop=el.scrollHeight; }); },
     async run(){
       if(!this.file && !this.sampleId){ alert('请上传图像或选择示例'); return; }
       this.running = true; this.result = null; this.stageIdx = 0;
