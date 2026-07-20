@@ -6,6 +6,7 @@
 import base64
 import csv
 import io
+import json
 from pathlib import Path
 
 import numpy as np
@@ -99,6 +100,12 @@ async def process(file: UploadFile | None = File(None),
         response["reference_image"] = _to_b64(reference)
         response["noisy_metrics"] = metrics.full_reference_metrics(reference, image)
     return response
+
+
+@app.get("/api/paper_results")
+def paper_results():
+    path = ROOT / "experiments" / "paper_results.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.get("/api/benchmark")

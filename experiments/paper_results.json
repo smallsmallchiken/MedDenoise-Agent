@@ -1,0 +1,39 @@
+{
+  "source": "Peng et al., VT-BM3D: A collaborative filtering framework with joint optimization of structure awareness and noise characteristics, Signal Processing 243 (2026) 110417",
+  "summary": {
+    "avg_psnr_gain_db": 2.04,
+    "max_psnr_gain_db": 4.19,
+    "set12_g3_time_change_pct": -11.7,
+    "bsds300_g3_time_change_pct": -4.3
+  },
+  "table2": [
+    {"dataset": "Set12", "noise": "g3", "sigma": 5,  "bm3d_psnr": 30.17, "vtbm3d_psnr": 31.64, "bm3d_ssim": 0.87,  "vtbm3d_ssim": 0.89,  "delta_psnr": 1.47, "delta_ssim": 0.03,  "time_change_pct": -12.33},
+    {"dataset": "Set12", "noise": "g3", "sigma": 15, "bm3d_psnr": 28.06, "vtbm3d_psnr": 29.87, "bm3d_ssim": 0.82,  "vtbm3d_ssim": 0.86,  "delta_psnr": 1.81, "delta_ssim": 0.05,  "time_change_pct": -10.12},
+    {"dataset": "Set12", "noise": "g3", "sigma": 25, "bm3d_psnr": 27.23, "vtbm3d_psnr": 28.84, "bm3d_ssim": 0.79,  "vtbm3d_ssim": 0.84,  "delta_psnr": 1.61, "delta_ssim": 0.04,  "time_change_pct": -12.05},
+    {"dataset": "Set12", "noise": "g3", "sigma": 35, "bm3d_psnr": 26.72, "vtbm3d_psnr": 28.05, "bm3d_ssim": 0.78,  "vtbm3d_ssim": 0.82,  "delta_psnr": 1.33, "delta_ssim": 0.04,  "time_change_pct": -12.42},
+    {"dataset": "Set12", "noise": "g5", "sigma": 5,  "bm3d_psnr": 30.28, "vtbm3d_psnr": 32.12, "bm3d_ssim": 0.869, "vtbm3d_ssim": 0.894, "delta_psnr": 1.84, "delta_ssim": 0.025, "time_change_pct": -6.89},
+    {"dataset": "Set12", "noise": "g5", "sigma": 15, "bm3d_psnr": 28.14, "vtbm3d_psnr": 30.24, "bm3d_ssim": 0.820, "vtbm3d_ssim": 0.856, "delta_psnr": 2.10, "delta_ssim": 0.036, "time_change_pct": -21.46},
+    {"dataset": "Set12", "noise": "g5", "sigma": 25, "bm3d_psnr": 27.25, "vtbm3d_psnr": 29.21, "bm3d_ssim": 0.795, "vtbm3d_ssim": 0.823, "delta_psnr": 1.96, "delta_ssim": 0.028, "time_change_pct": 11.87},
+    {"dataset": "Set12", "noise": "g5", "sigma": 35, "bm3d_psnr": 26.71, "vtbm3d_psnr": 28.46, "bm3d_ssim": 0.779, "vtbm3d_ssim": 0.796, "delta_psnr": 1.75, "delta_ssim": 0.017, "time_change_pct": 8.59},
+    {"dataset": "BSDS300", "noise": "g3", "sigma": 5,  "bm3d_psnr": 29.29, "vtbm3d_psnr": 31.81, "bm3d_ssim": 0.827, "vtbm3d_ssim": 0.902, "delta_psnr": 2.52, "delta_ssim": 0.075, "time_change_pct": -2.70},
+    {"dataset": "BSDS300", "noise": "g3", "sigma": 15, "bm3d_psnr": 27.34, "vtbm3d_psnr": 29.84, "bm3d_ssim": 0.755, "vtbm3d_ssim": 0.861, "delta_psnr": 2.50, "delta_ssim": 0.106, "time_change_pct": -4.40},
+    {"dataset": "BSDS300", "noise": "g3", "sigma": 25, "bm3d_psnr": 26.61, "vtbm3d_psnr": 28.78, "bm3d_ssim": 0.723, "vtbm3d_ssim": 0.830, "delta_psnr": 2.17, "delta_ssim": 0.107, "time_change_pct": -4.83},
+    {"dataset": "BSDS300", "noise": "g3", "sigma": 35, "bm3d_psnr": 26.17, "vtbm3d_psnr": 28.00, "bm3d_ssim": 0.704, "vtbm3d_ssim": 0.806, "delta_psnr": 1.83, "delta_ssim": 0.102, "time_change_pct": -5.36},
+    {"dataset": "BSDS300", "noise": "g5", "sigma": 5,  "bm3d_psnr": 29.33, "vtbm3d_psnr": 32.01, "bm3d_ssim": 0.830, "vtbm3d_ssim": 0.899, "delta_psnr": 2.68, "delta_ssim": 0.069, "time_change_pct": 1.17},
+    {"dataset": "BSDS300", "noise": "g5", "sigma": 15, "bm3d_psnr": 27.36, "vtbm3d_psnr": 30.02, "bm3d_ssim": 0.756, "vtbm3d_ssim": 0.848, "delta_psnr": 2.66, "delta_ssim": 0.092, "time_change_pct": -0.38},
+    {"dataset": "BSDS300", "noise": "g5", "sigma": 25, "bm3d_psnr": 26.60, "vtbm3d_psnr": 28.96, "bm3d_ssim": 0.724, "vtbm3d_ssim": 0.810, "delta_psnr": 2.36, "delta_ssim": 0.086, "time_change_pct": -0.77},
+    {"dataset": "BSDS300", "noise": "g5", "sigma": 35, "bm3d_psnr": 26.16, "vtbm3d_psnr": 28.21, "bm3d_ssim": 0.704, "vtbm3d_ssim": 0.781, "delta_psnr": 2.05, "delta_ssim": 0.077, "time_change_pct": -1.98}
+  ],
+  "representative_images": [
+    {"image": "Baboon",     "noise": "g3", "sigma": 15, "bm3d_psnr": 24.00, "vtbm3d_psnr": 28.19, "bm3d_ssim": 0.6200, "vtbm3d_ssim": 0.8713},
+    {"image": "Brick Wall", "noise": "g3", "sigma": 15, "bm3d_psnr": 20.82, "vtbm3d_psnr": 24.74},
+    {"image": "Pentagon",   "noise": "g5", "sigma": 15, "bm3d_psnr": 27.45, "vtbm3d_psnr": 30.23},
+    {"image": "Airport",    "noise": "g5", "sigma": 15, "bm3d_psnr": 26.91, "vtbm3d_psnr": 30.24}
+  ],
+  "table3_ablation": [
+    {"removed": "完整 VT-BM3D",            "bsds300_psnr": 29.84, "bsds300_ssim": 0.861, "set12_psnr": 30.12, "set12_ssim": 0.872},
+    {"removed": "移除 结构感知自适应阈值模块", "bsds300_psnr": 28.34, "bsds300_ssim": 0.820, "set12_psnr": 28.63, "set12_ssim": 0.835},
+    {"removed": "移除 边缘保护与纹理增强模块", "bsds300_psnr": 28.09, "bsds300_ssim": 0.805, "set12_psnr": 28.31, "set12_ssim": 0.820},
+    {"removed": "移除 噪声建模与自适应变换选择", "bsds300_psnr": 29.59, "bsds300_ssim": 0.850, "set12_psnr": 29.85, "set12_ssim": 0.860}
+  ]
+}

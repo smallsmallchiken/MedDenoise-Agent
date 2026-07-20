@@ -2,6 +2,16 @@
 
 本文档将系统内容映射到《新疆大学软件学院小学期实训论文》模板各章节, 便于撰写高分报告。
 
+## 参考论文关键结论 (可直接引用)
+
+出处: Peng et al., "VT-BM3D: A collaborative filtering framework with joint optimization of structure awareness and noise characteristics", Signal Processing 243 (2026) 110417.
+
+- VT-BM3D 相对 BM3D 平均 PSNR 提升 **2.04dB**, 复杂纹理最大提升 **4.19dB**
+- Set12: g3结构噪声下平均 +1.56dB (SSIM +0.04), g5周期噪声下 +1.91dB (SSIM +0.027), 耗时平均降低 11.7% / 1.9%
+- BSDS300: g3下 +2.26dB (SSIM +0.098), g5下 +2.44dB (SSIM +0.084)
+- 消融实验: 移除结构感知自适应阈值模块 PSNR 下降 1.50dB; 移除边缘保护与纹理增强模块再降 0.75dB; 移除噪声建模与自适应变换选择降 0.25dB
+- 完整数据见 `experiments/paper_results.json`, 前端"论文结果"页已做可视化(可直接截图入论文)
+
 ## 摘要 (三段式)
 
 - 第1段(背景意义, ≤150字): 医学影像(CT/MRI/X光)在采集过程中不可避免引入噪声, 影响病灶识别与临床诊断。传统去噪需人工选择算法与参数, 效率低且依赖经验。本设计将大模型智能Agent技术与经典图像去噪算法结合, 实现影像质量的自主感知、决策与增强。
