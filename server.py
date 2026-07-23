@@ -50,6 +50,21 @@ def _hash(pwd: str) -> str:
     return hashlib.sha256(pwd.encode("utf-8")).hexdigest()
 
 
+def _user_hash(entry):
+    """兼容旧版纯 hash 字符串与新版的 {password_hash, email} 字典。"""
+    if isinstance(entry, dict):
+        return entry.get("password_hash", "")
+    return entry
+
+
+def _find_user_by_email(email: str):
+    email = (email or "").lower().strip()
+    for u, entry in users.items():
+        if isinstance(entry, dict) and entry.get("email", "").lower().strip() == email:
+            return u
+    return None
+
+
 def _load_auth() -> None:
     global users, tokens
     try:
@@ -60,8 +75,16 @@ def _load_auth() -> None:
         tokens = json.loads(TOKENS_FILE.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         tokens = {}
+    # 迁移旧版纯 hash 用户记录
+    migrated = False
+    for u in list(users.keys()):
+        if isinstance(users[u], str):
+            users[u] = {"password_hash": users[u]}
+            migrated = True
     if "admin" not in users:
-        users["admin"] = _hash("123456")
+        users["admin"] = {"password_hash": _hash("123456")}
+        migrated = True
+    if migrated:
         _save_users()
 
 
@@ -253,10 +276,14 @@ async def auth_register(username: str = Form(...),
         return {"ok": False, "detail": "两次输入密码不一致"}
     if not username or not password:
         return {"ok": False, "detail": "用户名或密码不能为空"}
+    if not email:
+        return {"ok": False, "detail": "邮箱不能为空"}
     _load_auth()
     if username in users:
         return {"ok": False, "detail": "用户名已存在"}
-    users[username] = _hash(password)
+    if _find_user_by_email(email):
+        return {"ok": False, "detail": "该邮箱已被注册"}
+    users[username] = {"password_hash": _hash(password), "email": email}
     _save_users()
     return {"ok": True, "detail": "注册成功, 请登录"}
 
@@ -264,7 +291,7 @@ async def auth_register(username: str = Form(...),
 @app.post("/api/auth/login")
 async def auth_login(username: str = Form(...), password: str = Form(...)):
     _load_auth()
-    if username not in users or users[username] != _hash(password):
+    if username not in users or _user_hash(users[username]) != _hash(password):
         return {"ok": False, "detail": "用户名或密码错误"}
     token = secrets.token_urlsafe(24)
     tokens[token] = username
@@ -282,21 +309,24 @@ async def auth_logout(authorization: str = Header(None)):
 
 
 @app.post("/api/auth/reset")
-async def auth_reset(username: str = Form(...),
+async def auth_reset(username: str = Form(''),
                      password: str = Form(...),
                      confirm: str = Form(...),
                      email: str = Form(''),
                      code: str = Form('')):
     if password != confirm:
         return {"ok": False, "detail": "两次输入密码不一致"}
+    if not email:
+        return {"ok": False, "detail": "请输入注册邮箱"}
     _load_auth()
-    if username not in users:
-        return {"ok": False, "detail": "用户名不存在"}
-    users[username] = _hash(password)
+    target = username if username else _find_user_by_email(email)
+    if not target or target not in users:
+        return {"ok": False, "detail": "该账号或邮箱未注册"}
+    users[target]["password_hash"] = _hash(password)
     _save_users()
     # invalidate existing tokens for this user
     for t, u in list(tokens.items()):
-        if u == username:
+        if u == target:
             tokens.pop(t, None)
     _save_tokens()
     return {"ok": True, "detail": "密码已重置, 请重新登录"}
