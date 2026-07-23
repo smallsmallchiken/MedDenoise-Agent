@@ -171,6 +171,7 @@
     .perception-box { display: flex; flex-direction: column; gap: 12px; }
     .perception-tags { display: flex; flex-wrap: wrap; gap: 8px; }
     .tag { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 5px 11px; font-size: 12px; }
+    .perception-desc { font-size: 13px; color: var(--muted); line-height: 1.7; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
     .radar-wrap { height: 260px; }
 
     .pipeline {
@@ -478,9 +479,11 @@
             <span class="tag">估计 σ: {{ perception.estimated_sigma.toFixed ? perception.estimated_sigma.toFixed(2) : perception.estimated_sigma }}</span>
             <span class="tag">边缘密度: {{ (perception.edge_density||0).toFixed(3) }}</span>
             <span class="tag">纹理复杂度: {{ (perception.texture_complexity||0).toFixed(3) }}</span>
+            <span class="tag">方向一致性: {{ (perception.mean_coherence||0).toFixed(3) }}</span>
             <span class="tag">动态范围: {{ (perception.dynamic_range||0).toFixed(3) }}</span>
           </div>
-          <div class="muted" v-else>选择图像并点击处理后，这里会显示结构感知分析</div>
+          <div class="perception-desc" v-if="perception && perception.summary">{{ perception.summary }}</div>
+          <div class="muted" v-else-if="!perception">选择图像并点击处理后，这里会显示结构感知分析</div>
           <div class="radar-wrap" ref="radarChart" v-if="perception"></div>
         </div>
 
