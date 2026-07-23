@@ -1,743 +1,1332 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MedDenoise-Agent · 医学影像智能去噪与质量增强系统</title>
-<script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-<style>
-:root{
-  --bg:#0b1220;--panel:#111a2e;--panel2:#16223c;--line:#233250;
-  --text:#e8eefc;--muted:#8aa0c8;--accent:#38bdf8;--accent2:#818cf8;
-  --ok:#34d399;--warn:#fbbf24;--good:#34d399;--bad:#f87171;
-}
-.mtable{width:100%;border-collapse:collapse;font-size:12.5px}
-.mtable th,.mtable td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
-.mtable th{color:var(--accent);font-weight:600;background:rgba(56,189,248,.06)}
-.mtable td{color:#b9c8e8}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:radial-gradient(1200px 600px at 80% -10%,#16305c 0%,var(--bg) 55%);
-  color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;min-height:100vh}
-.header{display:flex;align-items:center;gap:14px;padding:22px 36px;border-bottom:1px solid var(--line);
-  backdrop-filter:blur(6px);position:sticky;top:0;background:rgba(11,18,32,.8);z-index:10}
-.logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 18px rgba(56,189,248,.4)}
-.header h1{font-size:20px;font-weight:700;letter-spacing:.5px}
-.header .sub{font-size:12px;color:var(--muted);margin-top:2px}
-.tabs{margin-left:auto;display:flex;gap:8px}
-.tab{padding:8px 18px;border-radius:10px;cursor:pointer;color:var(--muted);font-size:14px;
-  border:1px solid transparent;transition:.2s}
-.tab.active{color:var(--text);background:var(--panel2);border-color:var(--line)}
-.tab:hover{color:var(--text)}
-.main{max-width:1280px;margin:26px auto;padding:0 24px;display:grid;gap:20px}
-.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
-.card{background:linear-gradient(180deg,var(--panel) 0%,rgba(17,26,46,.85) 100%);
-  border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-.card h3{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:#cfe0ff}
-.card h3::before{content:"";width:4px;height:16px;border-radius:2px;
-  background:linear-gradient(var(--accent),var(--accent2))}
-label{font-size:13px;color:var(--muted);display:block;margin:12px 0 6px}
-select,input[type=file]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--text);font-size:14px}
-input[type=range]{width:100%;accent-color:var(--accent)}
-.switch{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;cursor:pointer}
-.btn{width:100%;margin-top:18px;padding:13px;border:none;border-radius:12px;cursor:pointer;
-  font-size:15px;font-weight:700;color:#04121f;letter-spacing:1px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));transition:.2s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(56,189,248,.45)}
-.btn:disabled{opacity:.55;cursor:wait;transform:none}
-.pipeline{display:flex;gap:0;margin:4px 0 18px}
-.stage{flex:1;text-align:center;position:relative;padding:10px 4px;font-size:13px;color:var(--muted)}
-.stage .dot{width:34px;height:34px;margin:0 auto 8px;border-radius:50%;display:grid;place-items:center;
-  background:var(--panel2);border:2px solid var(--line);font-size:15px;transition:.3s}
-.stage:not(:last-child)::after{content:"";position:absolute;top:26px;left:calc(50% + 20px);
-  width:calc(100% - 40px);height:2px;background:var(--line)}
-.stage.active .dot{border-color:var(--accent);box-shadow:0 0 14px rgba(56,189,248,.6);color:var(--accent)}
-.stage.done .dot{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#04121f}
-.stage.done{color:var(--text)}
-.imgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-.imgbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
-.imgbox img{width:100%;border-radius:8px;image-rendering:auto}
-.imgbox .cap{font-size:13px;color:var(--muted);margin-top:8px}
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
-.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
-.metric .v{font-size:24px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;background-clip:text;color:transparent}
-.metric .k{font-size:12px;color:var(--muted);margin-top:4px}
-.metric .d{font-size:12px;color:var(--ok);margin-top:2px}
-.trace{margin-top:6px}
-.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px}
-.step:last-child{border:none}
-.step .no{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;
-  background:var(--panel2);border:1px solid var(--accent);color:var(--accent);font-size:12px}
-.step code{color:var(--warn);background:rgba(251,191,36,.08);padding:1px 6px;border-radius:6px}
-.step .res{color:var(--muted);margin-top:3px;word-break:break-all}
-.tag{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;margin:2px 4px 2px 0;
-  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--accent)}
-.chart{width:100%;height:360px}
-.charts2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.empty{color:var(--muted);text-align:center;padding:60px 0;font-size:14px}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #04121f;border-top-color:transparent;
-  border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;margin-right:8px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.footer{text-align:center;color:var(--muted);font-size:12px;padding:26px 0}
-.filebtn{display:block;padding:10px 12px;border-radius:10px;border:1px dashed var(--line);
-  background:var(--panel2);color:var(--muted);font-size:14px;cursor:pointer;text-align:center;transition:.2s}
-.filebtn:hover{border-color:var(--accent);color:var(--text)}
-.chatwrap{display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:480px}
-.chatlog{flex:1;overflow-y:auto;padding:6px 4px;display:flex;flex-direction:column;gap:14px}
-.bubble{max-width:76%;padding:12px 16px;border-radius:14px;font-size:14px;line-height:1.8;
-  white-space:pre-wrap;word-break:break-word}
-.bubble.user{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));
-  color:#04121f;border-bottom-right-radius:4px;font-weight:500}
-.bubble.agent{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);
-  border-bottom-left-radius:4px}
-.bubble.agent b,.bubble.agent strong{color:var(--accent)}
-.bubble table{border-collapse:collapse;margin:6px 0;font-size:13px}
-.bubble th,.bubble td{border:1px solid var(--line);padding:4px 10px}
-.bubble .imgs3{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-.bubble .imgs3 .ib{width:160px;text-align:center}
-.bubble .imgs3 img{width:100%;border-radius:8px}
-.bubble .imgs3 .lb{font-size:12px;color:var(--muted);margin-top:4px}
-.chips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0}
-.chip{font-size:13px;padding:6px 14px;border-radius:18px;cursor:pointer;
-  background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);color:var(--accent);transition:.2s}
-.chip:hover{background:rgba(56,189,248,.22)}
-.chatinput{display:flex;gap:10px;margin-top:6px}
-.chatinput input{flex:1;padding:13px 16px;border-radius:12px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--text);font-size:14px;outline:none}
-.chatinput input:focus{border-color:var(--accent)}
-.chatinput button{padding:0 26px;border:none;border-radius:12px;cursor:pointer;font-size:15px;
-  font-weight:700;color:#04121f;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-.chatinput button:disabled{opacity:.55;cursor:wait}
-.typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:4px 8px}
-.think{margin:14px 0;padding:14px 16px;border-radius:12px;background:rgba(56,189,248,.05);
-  border:1px solid rgba(56,189,248,.22);max-height:340px;overflow-y:auto}
-.think-title{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:10px}
-.llmtag{font-size:11px;font-weight:600;padding:2px 10px;border-radius:10px;margin-left:8px;
-  background:linear-gradient(135deg,#8b5cf6,#38bdf8);color:#fff;vertical-align:1px}
-.think-item{display:flex;gap:12px;margin-bottom:10px;font-size:13px;line-height:1.8}
-.think-stage{flex:none;width:130px;color:var(--accent2);font-weight:600}
-.think-text{color:#b9c8e8;white-space:pre-wrap}
-.plancard{margin:6px 0 12px;padding:12px 16px;border-radius:12px;
-  background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.3)}
-@media(max-width:900px){.grid{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedDenoise-Agent · 医学影像智能去噪</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --primary: #122e8a;
+      --primary-light: #1e40af;
+      --bg: #f5efea;
+      --panel: #fff;
+      --panel2: #faf7f3;
+      --text: #111827;
+      --muted: #5c6476;
+      --line: #e6e0da;
+      --success: #0f7a3e;
+      --danger: #b91c1c;
+      --shadow: 0 4px 12px rgba(18,46,138,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #app { min-height: 100vh; }
+    button, input, select, textarea {
+      font: inherit;
+    }
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn:hover { background: var(--primary-light); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    .btn-ghost:hover { background: var(--panel2); }
+    .card {
+      background: var(--panel);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      border: 1px solid var(--line);
+    }
+    .card h3 { margin: 0 0 12px; font-size: 16px; color: var(--primary); }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    /* 登录页 */
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .auth-card {
+      background: var(--panel);
+      width: 100%;
+      max-width: 420px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 32px;
+      border: 1px solid var(--line);
+    }
+    .auth-card h2 { margin: 0 0 8px; color: var(--primary); }
+    .auth-tabs {
+      display: flex;
+      gap: 8px;
+      margin: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .auth-tabs span {
+      padding: 10px 0;
+      cursor: pointer;
+      color: var(--muted);
+      margin-right: 16px;
+      border-bottom: 2px solid transparent;
+    }
+    .auth-tabs span.active { color: var(--primary); border-color: var(--primary); }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .form-row input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline-color: var(--primary);
+      background: var(--panel2);
+    }
+    .verify-wrap { display: flex; gap: 8px; }
+    .verify-wrap input { flex: 1; }
+    .verify-wrap button { flex-shrink: 0; white-space: nowrap; }
+    .auth-card .btn { width: 100%; margin-top: 8px; }
+    .toast { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* 主界面 */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      gap: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 38px; height: 38px; background: #fff; color: var(--primary);
+      border-radius: 8px; display: grid; place-items: center;
+      font-weight: 800; font-size: 14px;
+    }
+    .brand h1 { margin: 0; font-size: 18px; letter-spacing: .5px; }
+    .brand .subtitle { font-size: 12px; opacity: .85; }
+    .tabs { display: flex; gap: 8px; }
+    .tabs .tab {
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      opacity: .85;
+      transition: .2s;
+    }
+    .tabs .tab:hover, .tabs .tab.active { background: rgba(255,255,255,0.15); opacity: 1; }
+    .user { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+
+    .main { padding: 20px; max-width: 1500px; margin: 0 auto; }
+
+    /* 智能处理 */
+    .run-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .control-card .row { margin-bottom: 14px; }
+    .control-card label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .control-card select, .control-card input[type=file] { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); }
+    .toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .slider-wrap { display: flex; align-items: center; gap: 12px; }
+    .slider-wrap input[type=range] { flex: 1; }
+    .actions { display: flex; gap: 10px; margin-bottom: 14px; }
+    .actions .btn { flex: 1; }
+
+    .preview-box { margin-top: 6px; border: 1px dashed var(--line); border-radius: 10px; padding: 12px; background: var(--panel2); text-align: center; }
+    .preview-box img { max-width: 100%; max-height: 220px; border-radius: 8px; background: #fff; border: 1px solid var(--line); object-fit: contain; }
+    .preview-label { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .preview-placeholder { color: var(--muted); font-size: 13px; padding: 40px 0; }
+    .config-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .sum-tag { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 5px 11px; font-size: 12px; color: var(--muted); }
+
+    .perception-box { display: flex; flex-direction: column; gap: 12px; }
+    .perception-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 5px 11px; font-size: 12px; }
+    .perception-desc { font-size: 13px; color: var(--muted); line-height: 1.7; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+    .radar-wrap { height: 260px; }
+
+    .pipeline {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 0 14px;
+    }
+    .pipeline .step {
+      flex: 1;
+      min-width: 130px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .pipeline .step.done { border-color: var(--primary); color: var(--primary); background: #eef2ff; }
+    .pipeline .step.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+    .step.active .step-num { background: #fff; color: var(--primary); }
+    .step.done .step-num { background: var(--primary); color: #fff; }
+    .progress-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+    .progress-fill { height: 100%; background: var(--primary); transition: width .3s ease; }
+
+    .thinking-box {
+      background: var(--panel2);
+      border-left: 4px solid var(--primary);
+      padding: 14px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 0;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .images-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .img-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .img-card img { width: 100%; border-radius: 8px; background: #fff; }
+    .img-card .label { font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+
+    .result-card h3 { margin: 0 0 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .result-mode { background: rgba(18,46,138,0.1); color: var(--primary); font-size: 12px; padding: 3px 10px; border-radius: 12px; }
+    .result-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .result-actions { display: flex; gap: 10px; }
+    .result-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .result-stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+    .result-stat .num { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .result-stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* 聊天 */
+    .chat-wrap {
+      position: fixed;
+      top: 62px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      z-index: 40;
+      background: var(--panel);
+    }
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chat-title { font-weight: 700; color: var(--primary); font-size: 15px; }
+    .chat-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .quick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: 0.15s; }
+    .chip:hover { border-color: var(--primary); color: var(--primary); background: #fff; }
+    .chat-list { flex: 1; overflow-y: auto; padding: 18px; background: var(--bg); }
+    .msg { display: flex; margin-bottom: 18px; }
+    .msg.user { justify-content: flex-end; }
+    .msg-inner { max-width: 78%; }
+    .msg-author { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .msg.user .msg-author { text-align: right; }
+    .bubble {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 14px; line-height: 1.7;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .msg.user .bubble { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .bubble pre { background: #f3f4f6; padding: 10px; border-radius: 8px; overflow: auto; font-size: 12px; border: 1px solid var(--line); }
+    .msg.user .bubble pre { background: rgba(255,255,255,0.15); border: none; }
+    .chat-input { display: flex; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--line); background: var(--panel2); }
+    .chat-input input { flex: 1; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; outline-color: var(--primary); background: var(--panel); font-size: 14px; }
+    .typing:after { content: '...'; animation: dots 1.4s steps(4,end) infinite; }
+    @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
+    .chat-sidebar {
+      width: 300px;
+      border-left: 1px solid var(--line);
+      padding: 14px;
+      background: var(--bg);
+      overflow-y: auto;
+    }
+    .history-item { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 13px; transition: 0.15s; }
+    .history-item:hover { border-color: var(--primary); }
+    .history-meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    /* 论文结果 */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .summary-card { text-align: center; }
+    .summary-card .num { font-size: 26px; font-weight: 700; color: var(--primary); }
+    .summary-card .desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th, .data-table td { border: 1px solid var(--line); padding: 8px; text-align: center; }
+    .data-table th { background: var(--panel2); color: var(--primary); }
+    .data-table tr:nth-child(even) { background: var(--panel2); }
+    .paper-figures { display: flex; flex-direction: column; gap: 16px; max-width: 720px; margin: 0 auto; }
+    .figure-card img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+    .count-tag { font-size: 11px; color: var(--muted); margin-left: 3px; }
+    .delta-good { color: #047857; font-weight: 600; }
+    .delta-bad { color: #b91c1c; font-weight: 600; }
+    .unpaired-row { opacity: 0.65; }
+    .compare-summary { margin-top: 12px; padding: 10px 14px; background: var(--panel2); border-radius: 8px; font-size: 13px; display: flex; gap: 0; flex-wrap: wrap; }
+    .compare-summary > span { padding: 0 12px; }
+    .compare-summary > span:not(:first-child) { border-left: 2px solid var(--primary); }
+    .sum-good { color: #047857; font-weight: 600; }
+
+    /* 算法评测 */
+    .innovation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
+    .inno-card { }
+    .inno-card h4 { margin: 0 0 10px; color: var(--primary); font-size: 15px; }
+    .inno-body p { margin: 0 0 8px; font-size: 13px; line-height: 1.8; }
+    .inno-body ul { margin: 0; }
+    .inno-body li { font-size: 13px; line-height: 1.9; }
+    .arch-img { width: 100%; border-radius: 10px; border: 1px solid var(--line); margin: 12px 0; }
+    .arch-caption { font-size: 13px; line-height: 1.8; }
+    .formula { background: var(--panel2); border: 1px dashed var(--line); border-radius: 8px; padding: 10px; font-family: "Courier New", monospace; font-size: 13px; margin: 10px 0; }
+
+    /* API监控 */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .stat-card { }
+    .stat-card .num { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .stat-card .label { font-size: 12px; color: var(--muted); }
+    .control-inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .control-inline select, .control-inline input { padding: 8px; border: 1px solid var(--line); border-radius: 6px; min-width: 140px; }
+
+    @media (max-width: 980px) {
+      .run-grid { grid-template-columns: 1fr; }
+      .chat-wrap { flex-direction: column; }
+      .chat-sidebar { width: 100%; border-left: none; border-top: 1px solid var(--line); }
+      .chat-header { flex-direction: column; align-items: flex-start; }
+      .tabs .tab { padding: 9px 10px; font-size: 13px; }
+      .header { flex-wrap: wrap; }
+    }
+  </style>
 </head>
 <body>
 <div id="app">
-  <div class="header">
-    <div class="logo">🏥</div>
-    <div>
-      <h1>MedDenoise-Agent</h1>
-      <div class="sub">基于智能Agent的医学影像智能去噪与质量增强系统 · 论文VT-BM3D算法 × AI智能体调参</div>
-    </div>
-    <div class="tabs">
-      <div class="tab" :class="{active:tab==='run'}" @click="tab='run'">🤖 智能处理</div>
-      <div class="tab" :class="{active:tab==='chat'}" @click="switchChat">💬 智能对话</div>
-      <div class="tab" :class="{active:tab==='paper'}" @click="switchPaper">📄 论文结果</div>
-      <div class="tab" :class="{active:tab==='bench'}" @click="switchBench">📊 算法评测</div>
-      <div class="tab" :class="{active:tab==='api'}" @click="switchApi">📡 API监控</div>
-    </div>
-  </div>
+  <template v-if="!loggedIn">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h2>MedDenoise-Agent</h2>
+        <div class="muted">VT-BM3D 医学影像智能去噪系统</div>
+        <div class="auth-tabs">
+          <span :class="{active: authTab==='login'}" @click="authTab='login'">登录</span>
+          <span :class="{active: authTab==='register'}" @click="authTab='register'">注册</span>
+          <span :class="{active: authTab==='reset'}" @click="authTab='reset'">重置密码</span>
+        </div>
 
-  <div class="main" v-show="tab==='run'">
-    <div class="grid">
-      <div class="card">
-        <h3>输入配置</h3>
-        <label>上传医学影像 (PNG/JPG)</label>
-        <label class="filebtn">{{file?('已选择: '+file.name):'📁 点击选择图像文件'}}
-          <input type="file" accept="image/*" @change="onFile" style="display:none"></label>
-        <label>或选择示例图像</label>
-        <select v-model="sampleId">
-          <option value="">-- 请选择 --</option>
-          <option v-for="s in samples" :value="s.id">{{s.name}}</option>
-        </select>
-        <label class="switch"><input type="checkbox" v-model="addNoise"> 添加合成噪声 (可计算PSNR/SSIM)</label>
-        <template v-if="addNoise">
-          <label>噪声强度 σ = {{sigma}}</label>
-          <input type="range" min="5" max="50" step="1" v-model.number="sigma">
-        </template>
-        <button class="btn" :disabled="running" @click="run">
-          <span v-if="running"><span class="spinner"></span>AI智能体处理中…</span>
-          <span v-else>🚀 启动AI智能体</span>
-        </button>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8">
-          AI智能体将给出分析意见与处理思路, 对论文VT-BM3D算法详细调参
-          (σ/α/β/texture_boost), 执行后给出结果分析并存档, 全过程思考可见。
+        <div v-if="authTab==='login'">
+          <div class="form-row"><label>账号</label><input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login"></div>
+          <div class="form-row"><label>密码</label><input type="password" v-model="loginForm.password" placeholder="密码" @keyup.enter="login"></div>
+          <button class="btn" @click="login" :disabled="loading">登录</button>
+        </div>
+
+        <div v-if="authTab==='register'">
+          <div class="form-row"><label>账号</label><input v-model="registerForm.username" placeholder="用户名"></div>
+          <div class="form-row"><label>邮箱</label><input type="email" v-model="registerForm.email" placeholder="邮箱"></div>
+          <div class="form-row verify-row">
+            <label>邮箱验证码</label>
+            <div class="verify-wrap">
+              <input v-model="registerForm.code" placeholder="验证码" @keyup.enter="register">
+              <button class="btn-ghost" style="font-size:13px;padding:8px 12px" @click="sendRegisterCode" :disabled="registerCodeSending">{{ registerCodeSending ? '发送中' : (registerCodeTimer>0 ? registerCodeTimer+'s' : '获取验证码') }}</button>
+            </div>
+            <div v-if="registerExpectedCode" class="muted" style="font-size:12px;margin-top:6px">演示验证码: {{registerExpectedCode}}</div>
+          </div>
+          <div class="form-row"><label>密码</label><input type="password" v-model="registerForm.password" placeholder="密码"></div>
+          <div class="form-row"><label>确认密码</label><input type="password" v-model="registerForm.confirm" placeholder="确认密码" @keyup.enter="register"></div>
+          <button class="btn" @click="register" :disabled="loading">注册</button>
+        </div>
+
+        <div v-if="authTab==='reset'">
+          <div class="form-row"><label>注册邮箱</label><input type="email" v-model="resetForm.email" placeholder="注册时填写的邮箱"></div>
+          <div class="form-row verify-row">
+            <label>邮箱验证码</label>
+            <div class="verify-wrap">
+              <input v-model="resetForm.code" placeholder="验证码" @keyup.enter="resetPwd">
+              <button class="btn-ghost" style="font-size:13px;padding:8px 12px" @click="sendResetCode" :disabled="resetCodeSending">{{ resetCodeSending ? '发送中' : (resetCodeTimer>0 ? resetCodeTimer+'s' : '获取验证码') }}</button>
+            </div>
+            <div v-if="resetExpectedCode" class="muted" style="font-size:12px;margin-top:6px">演示验证码: {{resetExpectedCode}}</div>
+          </div>
+          <div class="form-row"><label>新密码</label><input type="password" v-model="resetForm.password" placeholder="新密码"></div>
+          <div class="form-row"><label>确认新密码</label><input type="password" v-model="resetForm.confirm" placeholder="确认新密码" @keyup.enter="resetPwd"></div>
+          <button class="btn" @click="resetPwd" :disabled="loading">重置</button>
+        </div>
+
+        <div class="toast">{{ toast }}</div>
+      </div>
+    </div>
+  </template>
+
+  <template v-else>
+    <div class="header">
+      <div class="brand">
+        <div class="brand-mark">MDA</div>
+        <div>
+          <h1>MedDenoise-Agent</h1>
+          <div class="subtitle">VT-BM3D 医学影像智能去噪与质量增强</div>
         </div>
       </div>
-
-      <div class="card">
-        <h3>Agent 处理流水线</h3>
-        <div class="pipeline">
-          <div class="stage" v-for="(s,i) in stages" :class="{active:stageIdx===i&&running, done:stageIdx>i||(!running&&result)}">
-            <div class="dot">{{s.icon}}</div>{{s.name}}
-          </div>
-        </div>
-        <div v-if="!result && !running" class="empty">选择图像并启动AI智能体，处理结果将在此展示</div>
-        <div class="think" v-if="thoughts.length">
-          <div class="think-title">🧠 AI 思考过程 <span class="llmtag" v-if="usedLLM">LLM在线推理</span></div>
-          <div class="think-item" v-for="t in thoughts">
-            <div class="think-stage">{{t.stage}}</div>
-            <div class="think-text">{{t.text}}</div>
-          </div>
-          <div class="typing" v-if="running">AI正在思考…</div>
-        </div>
-        <div class="plancard" v-if="plan">
-          <div class="think-title">⚙️ AI调参方案 · VT-BM3D (论文结构感知协同滤波)</div>
-          <span class="tag">去噪σ: {{Number(plan.sigma).toFixed(1)}}</span>
-          <span class="tag" v-for="(v,k) in (plan.params||{})">{{k}}: {{v}}</span>
-          <span class="tag" v-if="(plan.enhance||[]).length">增强: {{plan.enhance.map(zhVal).join(' + ')}}</span>
-          <div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.9">
-            <div v-for="(r,k) in (plan.param_rationale||{})">💡 <b style="color:#b9c8e8">{{k}}</b>: {{r}}</div>
-            <div v-if="plan.expectation">🎯 预期: {{plan.expectation}}</div>
-            <div v-if="plan.reason">💡 {{plan.reason}}</div>
-          </div>
-        </div>
-        <template v-if="result">
-          <div class="imgs">
-            <div class="imgbox" v-if="result.reference_image">
-              <img :src="result.reference_image"><div class="cap">原始图像</div>
-            </div>
-            <div class="imgbox">
-              <img :src="result.input_image">
-              <div class="cap">输入{{result.reference_image?' (含噪声 σ='+sigma+')':''}}
-                <span v-if="result.noisy_metrics"> · PSNR {{result.noisy_metrics.psnr}}dB</span></div>
-            </div>
-            <div class="imgbox">
-              <img :src="result.output_image"><div class="cap">✨ Agent 处理结果</div>
-            </div>
-          </div>
-          <div class="metrics" v-if="result.evaluation">
-            <div class="metric" v-if="result.evaluation.psnr!==undefined">
-              <div class="v">{{result.evaluation.psnr}}</div><div class="k">PSNR (dB)</div>
-              <div class="d" v-if="result.noisy_metrics">↑ +{{(result.evaluation.psnr-result.noisy_metrics.psnr).toFixed(2)}} dB</div>
-            </div>
-            <div class="metric" v-if="result.evaluation.ssim!==undefined">
-              <div class="v">{{result.evaluation.ssim}}</div><div class="k">SSIM</div>
-              <div class="d" v-if="result.noisy_metrics">↑ +{{(result.evaluation.ssim-result.noisy_metrics.ssim).toFixed(4)}}</div>
-            </div>
-            <div class="metric"><div class="v">{{result.evaluation.laplacian_sharpness}}</div><div class="k">清晰度 (Laplacian)</div></div>
-            <div class="metric"><div class="v">{{result.evaluation.entropy}}</div><div class="k">信息熵</div></div>
-          </div>
-        </template>
+      <div class="tabs">
+        <div class="tab" v-for="t in tabs" :key="t.key" :class="{active:tab===t.key}" @click="tab=t.key">{{t.label}}</div>
+      </div>
+      <div class="user">
+        <span>{{user.username}}</span>
+        <button class="btn-ghost" @click="logout">退出</button>
       </div>
     </div>
 
-    <div class="grid" v-if="result">
-      <div class="card">
-        <h3>感知分析</h3>
-        <div style="font-size:14px;line-height:2">
-          <span class="tag">模态: {{result.perception.modality}}</span>
-          <span class="tag">噪声σ: {{result.perception.estimated_sigma}}</span>
-          <span class="tag">噪声等级: {{zhVal(result.perception.noise_level)}}</span>
-          <span class="tag">边缘密度: {{result.perception.edge_density}}</span>
-          <span class="tag">纹理复杂度: {{result.perception.texture_complexity}}</span>
-          <span class="tag">规划器: {{usedLLM?'LLM智能调参':'专家规则'}}</span>
+    <div class="main">
+      <!-- 智能处理 -->
+      <div v-if="tab==='run'" class="run-grid">
+        <div class="control-card card">
+          <h3>输入配置</h3>
+          <div class="row">
+            <label>医学影像示例</label>
+            <select v-model="sample_id" @change="onSampleChange">
+              <option value="">请选择</option>
+              <option v-for="s in samples" :key="s.id" :value="s.id">{{s.name}}</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>或上传图片</label>
+            <input type="file" accept="image/*" @change="onFileChange">
+          </div>
+          <div class="row">
+            <label class="toggle"><input type="checkbox" v-model="add_noise"> 加入高斯噪声模拟</label>
+          </div>
+          <div class="row" v-if="add_noise">
+            <label>噪声强度 σ: {{sigma}}</label>
+            <div class="slider-wrap">
+              <input type="range" min="5" max="50" step="1" v-model.number="sigma"><span class="muted">{{sigma}}</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" @click="runAI" :disabled="running">{{ running ? 'AI处理中...' : 'AI智能处理' }}</button>
+            <button class="btn-ghost" @click="runStd" :disabled="running">标准处理</button>
+          </div>
+
+          <div class="preview-box" v-if="previewUrl">
+            <img :src="previewUrl" alt="预览">
+            <div class="preview-label">{{ previewLabel }}</div>
+          </div>
+          <div class="preview-box" v-else>
+            <div class="preview-placeholder">选择示例或上传图片后，预览将实时显示</div>
+          </div>
+
+          <div class="config-summary" v-if="sample_id || file">
+            <div class="sum-tag" v-if="sampleName">示例: {{sampleName}}</div>
+            <div class="sum-tag" v-if="file">文件: {{file.name}}</div>
+            <div class="sum-tag">噪声模拟: {{add_noise ? ('σ = ' + sigma) : '关闭'}}</div>
+          </div>
         </div>
-        <div ref="radarEl" class="chart" style="height:280px"></div>
+
+        <div class="perception-box card">
+          <h3>感知分析</h3>
+          <div class="perception-tags" v-if="perception">
+            <span class="tag">模态: {{ perception.modality }}</span>
+            <span class="tag">噪声等级: {{ perception.noise_level }}</span>
+            <span class="tag">估计 σ: {{ perception.estimated_sigma.toFixed ? perception.estimated_sigma.toFixed(2) : perception.estimated_sigma }}</span>
+            <span class="tag">边缘密度: {{ (perception.edge_density||0).toFixed(3) }}</span>
+            <span class="tag">纹理复杂度: {{ (perception.texture_complexity||0).toFixed(3) }}</span>
+            <span class="tag">方向一致性: {{ (perception.mean_coherence||0).toFixed(3) }}</span>
+            <span class="tag">动态范围: {{ (perception.dynamic_range||0).toFixed(3) }}</span>
+          </div>
+          <div class="perception-desc" v-if="perception && perception.summary">{{ perception.summary }}</div>
+          <div class="muted" v-else-if="!perception">选择图像并点击处理后，这里会显示结构感知分析</div>
+          <div class="radar-wrap" ref="radarChart" v-if="perception"></div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1; margin-bottom:16px">
+          <div class="pipeline">
+            <div class="step" v-for="(s, idx) in stageNames" :key="s"
+                 :class="{done: stageState(idx)==='done', active: stageState(idx)==='active'}">
+              <div class="step-num">{{idx+1}}</div>
+              <div class="step-title">{{s}}</div>
+            </div>
+          </div>
+          <div class="progress-bar" v-if="running || stageProgress > 0">
+            <div class="progress-fill" :style="{width: stageProgress + '%'}"></div>
+          </div>
+          <div class="thinking-box" v-if="currentThinking">{{ currentThinking }}</div>
+          <div v-else-if="!running && stageProgress == 0" class="muted">点击“AI智能处理”查看 AI 分析、微调与执行全过程。</div>
+        </div>
+
+        <div class="card result-card" style="grid-column: 1 / -1;" v-if="result">
+          <div class="result-header">
+            <h3>处理结果 <span class="result-mode">{{result.mode || 'VT-BM3D'}}</span></h3>
+            <div class="result-actions">
+              <button class="btn-ghost" v-if="result.output_image" @click="downloadResult">下载结果图</button>
+              <button class="btn-ghost" @click="resetRun">重新处理</button>
+            </div>
+          </div>
+          <div class="result-stats" v-if="prettyMetrics">
+            <div class="result-stat" v-for="(v,k) in prettyMetrics" :key="k">
+              <div class="num">{{v}}</div>
+              <div class="label">{{metricName(k)}}</div>
+            </div>
+          </div>
+          <div class="images-row">
+            <div class="img-card" v-if="result.input_image"><img :src="result.input_image"><div class="label">含噪输入</div></div>
+            <div class="img-card" v-if="result.reference_image"><img :src="result.reference_image"><div class="label">原始参考</div></div>
+            <div class="img-card" v-if="result.output_image"><img :src="result.output_image"><div class="label">去噪输出</div></div>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <h3>调参与反思历史</h3>
-        <div class="trace">
-          <div class="step" v-for="(h,i) in result.history">
-            <div class="no">{{i+1}}</div>
+
+      <!-- 智能对话 -->
+      <div v-if="tab==='chat'" class="chat-wrap">
+        <div class="chat-messages">
+          <div class="chat-header">
             <div>
-              <div><code>{{i===0?'初次方案':'反思重试'}}</code>
-                <span style="color:var(--muted)">{{fmtArgs({sigma:Number(h.plan.sigma).toFixed(1),...(h.plan.params||{})})}}</span></div>
-              <div class="res">{{fmtRes(h.evaluation)}}</div>
+              <div class="chat-title">MedDenoise 智能助手</div>
+              <div class="chat-subtitle">基于 VT-BM3D 论文与处理历史的专业去噪问答</div>
+            </div>
+            <div class="quick-chips">
+              <div class="chip" v-for="q in quickQuestions" :key="q" @click="ask(q)">{{q}}</div>
+            </div>
+            <button class="btn-ghost" style="font-size:12px" @click="chatMessages=[{role:'ai',content:'你好, 我是 MedDenoise-Agent 智能助手。可以为你讲解 VT-BM3D 论文、分析去噪参数, 或帮你调用上方快捷问题。'}]">清空对话</button>
+          </div>
+          <div class="chat-list" ref="chatList">
+            <div v-for="(msg, i) in chatMessages" :key="i" class="msg" :class="msg.role">
+              <div class="msg-inner">
+                <div class="msg-author">{{msg.role==='user'?'我':'MedDenoise Agent'}}</div>
+                <div class="bubble" v-html="mdToHtml(msg.content)"></div>
+              </div>
+            </div>
+            <div v-if="chatSending" class="msg ai"><div class="msg-inner"><div class="msg-author">MedDenoise Agent</div><div class="bubble"><span class="typing">思考中</span></div></div></div>
+          </div>
+          <div class="chat-input">
+            <input v-model="chatInput" placeholder="输入问题, 例如: 介绍一下 VT-BM3D 的创新点" @keyup.enter="sendChat">
+            <button class="btn" @click="sendChat" :disabled="chatSending">发送</button>
+          </div>
+        </div>
+        <div class="chat-sidebar">
+          <div class="card" style="margin-bottom:0">
+            <h3>最近处理记录</h3>
+            <div class="muted" v-if="!history.length" style="font-size:13px">暂无记录</div>
+            <div v-for="h in history.slice(0,5)" :key="h.id" class="history-item">
+              <div><strong>#{{h.id}}</strong> {{(h.source||'未命名').replace(/^med_/,'')}}</div>
+              <div class="history-meta">σ={{h.noise_sigma}} · PSNR {{h.evaluation&&h.evaluation.psnr!=null?h.evaluation.psnr.toFixed(2):'-'}} · {{h.llm?'Agent调参':'未调参'}}</div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="main" v-show="tab==='chat'">
-    <div class="card chatwrap">
-      <h3>智能对话 · 用中文指挥去噪Agent</h3>
-      <div class="chatlog" ref="chatlog">
-        <div v-for="m in chatLog" class="bubble" :class="m.role">
-          <span v-html="m.html"></span>
-          <div class="imgs3" v-if="m.images">
-            <div class="ib" v-for="im in m.images"><img :src="im.src"><div class="lb">{{im.label}}</div></div>
+      <!-- 论文结果 -->
+      <div v-if="tab==='paper'">
+        <div class="summary-grid" v-if="paper && paper.summary">
+          <div class="card summary-card"><div class="num">+{{paper.summary.avg_psnr_gain_db}} dB</div><div class="desc">平均 PSNR 提升</div></div>
+          <div class="card summary-card"><div class="num">+{{paper.summary.max_psnr_gain_db}} dB</div><div class="desc">最大 PSNR 提升</div></div>
+          <div class="card summary-card"><div class="num">{{paper.summary.set12_g3_time_change_pct}}%</div><div class="desc">Set12 g3 耗时变化</div></div>
+          <div class="card summary-card"><div class="num">{{paper.summary.bsds300_g3_time_change_pct}}%</div><div class="desc">BSDS300 g3 耗时变化</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3>Set12 / BSDS300 PSNR/SSIM 对比 (论文 Table 2)</h3>
+          <div ref="paperChart" style="height:360px"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3>代表性图像结果 (σ=15)</h3>
+          <div class="paper-figures">
+            <div class="figure-card" v-for="(img, idx) in paperFigures.slice(0,2)" :key="idx">
+              <img :src="img.src">
+              <div style="font-size:12px;color:var(--muted);margin-top:6px">{{img.caption}}</div>
+            </div>
           </div>
         </div>
-        <div class="typing" v-if="chatBusy">Agent正在思考与处理…</div>
-      </div>
-      <div class="chips">
-        <div class="chip" v-for="q in quickQs" @click="sendChat(q)">{{q}}</div>
-      </div>
-      <div class="chatinput">
-        <input v-model="chatText" :disabled="chatBusy" placeholder="例如: 用σ=25处理Set12第5张 / 介绍一下VT-BM3D" @keyup.enter="sendChat()">
-        <button :disabled="chatBusy" @click="sendChat()">发送</button>
-      </div>
-    </div>
-  </div>
 
-  <div class="main" v-show="tab==='paper'">
-    <div class="card" v-if="paper">
-      <h3>论文核心结论 · VT-BM3D vs BM3D (Signal Processing 243 (2026) 110417)</h3>
-      <div class="metrics">
-        <div class="metric"><div class="v">+{{paper.summary.avg_psnr_gain_db}} dB</div><div class="k">平均 PSNR 提升</div></div>
-        <div class="metric"><div class="v">+{{paper.summary.max_psnr_gain_db}} dB</div><div class="k">复杂纹理最大提升</div></div>
-        <div class="metric"><div class="v">{{paper.summary.set12_g3_time_change_pct}}%</div><div class="k">Set12 g3 耗时变化</div></div>
-        <div class="metric"><div class="v">{{paper.summary.bsds300_g3_time_change_pct}}%</div><div class="k">BSDS300 g3 耗时变化</div></div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Table 2 · Set12 / BSDS300 · g3结构噪声 / g5周期噪声 · 平均 PSNR</h3>
-      <div class="charts2">
-        <div ref="pSet12El" class="chart"></div>
-        <div ref="pBsdEl" class="chart"></div>
-      </div>
-      <div class="charts2">
-        <div ref="pDeltaEl" class="chart"></div>
-        <div ref="pSsimEl" class="chart"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>代表性图像 (σ=15) 与 Table 3 消融实验</h3>
-      <div class="charts2">
-        <div ref="pReprEl" class="chart"></div>
-        <div ref="pAblEl" class="chart"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>本地复现实验 · Set12 + BSD300 数据集 (高斯噪声, 数据集平均)</h3>
-      <div v-if="!bench.length" class="empty">暂无评测数据 — 请先运行 python experiments/run_experiments.py</div>
-      <div class="charts2" v-else>
-        <div ref="psnrEl" class="chart"></div>
-        <div ref="ssimEl" class="chart"></div>
-      </div>
-      <div ref="barEl" class="chart" v-if="bench.length"></div>
-      <div v-if="bench.length" style="overflow-x:auto;margin-top:14px">
-        <table class="mtable">
-          <tr><th>算法</th><th v-for="s in benchSigmas">σ={{s}} PSNR/SSIM</th></tr>
-          <tr v-for="m in benchMethods">
-            <td><b>{{m}}</b></td>
-            <td v-for="s in benchSigmas">{{benchCell(m,s)}}</td>
-          </tr>
-        </table>
-      </div>
-    </div>
-    <div class="card">
-      <h3>AI处理记录存档 · 供对话Agent引用分析</h3>
-      <div v-if="!aiHistory.length" class="empty">暂无处理记录 — 在「智能处理」页运行AI智能体后, 结果将自动存档到这里</div>
-      <div v-else style="overflow-x:auto">
-        <table class="mtable">
-          <tr><th>#</th><th>时间</th><th>图像</th><th>加噪σ</th><th>去噪σ</th><th>alpha</th><th>beta_tensor</th><th>texture_boost</th><th>PSNR</th><th>SSIM</th><th>尝试</th><th>规划</th></tr>
-          <tr v-for="r in aiHistory">
-            <td>{{r.id}}</td><td>{{r.time}}</td><td>{{r.source}}</td>
-            <td>{{r.noise_sigma??'-'}}</td><td>{{r.plan&&r.plan.sigma?Number(r.plan.sigma).toFixed(1):'-'}}</td>
-            <td>{{r.plan&&r.plan.params?r.plan.params.alpha??'-':'-'}}</td>
-            <td>{{r.plan&&r.plan.params?r.plan.params.beta_tensor??'-':'-'}}</td>
-            <td>{{r.plan&&r.plan.params?r.plan.params.texture_boost??'-':'-'}}</td>
-            <td><b style="color:var(--good)">{{r.evaluation?r.evaluation.psnr??'-':'-'}}</b></td>
-            <td>{{r.evaluation?r.evaluation.ssim??'-':'-'}}</td>
-            <td>{{r.attempts}}</td><td>{{r.llm?'LLM':'规则'}}</td>
-          </tr>
-        </table>
-      </div>
-    </div>
-  </div>
+        <div class="card" style="margin-bottom:16px">
+          <h3>消融实验 (论文 Table 3)</h3>
+          <table class="data-table" v-if="paper && paper.table3_ablation">
+            <thead><tr><th>方案</th><th>BSDS300 PSNR</th><th>BSDS300 SSIM</th><th>Set12 PSNR</th><th>Set12 SSIM</th></tr></thead>
+            <tbody>
+              <tr v-for="r in paper.table3_ablation" :key="r.removed"><td>{{r.removed}}</td><td>{{r.bsds300_psnr}}</td><td>{{r.bsds300_ssim}}</td><td>{{r.set12_psnr}}</td><td>{{r.set12_ssim}}</td></tr>
+            </tbody>
+          </table>
+        </div>
 
-  <div class="main" v-show="tab==='bench'">
-    <div class="card">
-      <h3>一句话看懂 VT-BM3D 的创新</h3>
-      <div style="font-size:15px;line-height:2.1;color:var(--text)">
-        传统BM3D对整张图用<b style="color:var(--warn)">同一个力度</b>去噪 ——
-        噪声是干净了, 但组织边界和细微纹理也被一起“擦掉”了。<br>
-        VT-BM3D 的创新很简单: <b style="color:var(--accent)">先“看懂”图像哪里是结构、哪里是平坦背景,
-        再区别对待</b>: 平坦区大力去噪, 边缘/纹理区轻柔去噪, 最后逐像素融合。
-        既把噪声压干净, 又把细节留下来。
-      </div>
-    </div>
-    <div class="card">
-      <h3>三步看懂它怎么做</h3>
-      <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
-        <div class="metric" style="text-align:left;padding:18px">
-          <div style="font-size:22px">🗺️</div>
-          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第1步 · 画出“结构地图”</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.9">
-            结构显著性图 <b style="color:var(--text)">S = α·局部方差 + β·结构张量相干性</b>。
-            局部方差找到“纹理多的地方”, 结构张量找到“有方向的边缘”。
-            S接近1 = 重要结构, S接近0 = 平坦背景。</div>
-        </div>
-        <div class="metric" style="text-align:left;padding:18px">
-          <div style="font-size:22px">⚖️</div>
-          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第2步 · 双路去噪</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.9">
-            同时跑两个BM3D: <b style="color:var(--text)">强档(σ×1.15)</b> 把平坦区扫得彻底干净;
-            <b style="color:var(--text)">弱档(σ÷texture_boost)</b> 温柔处理纹理区,
-            不把真实细节当噪声抹掉。</div>
-        </div>
-        <div class="metric" style="text-align:left;padding:18px">
-          <div style="font-size:22px">🧬</div>
-          <div style="font-weight:700;margin:6px 0;color:var(--accent)">第3步 · 逐像素智能融合</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.9">
-            按结构地图加权: <b style="color:var(--text)">结果 = (1−S)·强档 + S·弱档</b>。
-            每个像素都拿到最适合自己的去噪力度 —— 背景干净、边缘锐利、纹理保留。</div>
+        <div class="card">
+          <h3>Agent 调参 vs 未调参 — 同一样本平均值对比</h3>
+          <table class="data-table" v-if="compareByDataset.length">
+            <thead>
+              <tr>
+                <th>样本</th>
+                <th>未调参 PSNR/dB</th>
+                <th>Agent 调参 PSNR/dB</th>
+                <th>ΔPSNR</th>
+                <th>未调参 SSIM</th>
+                <th>Agent 调参 SSIM</th>
+                <th>ΔSSIM</th>
+                <th>未调参 RMSE</th>
+                <th>Agent 调参 RMSE</th>
+                <th>ΔRMSE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in compareByDataset" :key="row.name" :class="row.paired ? '' : 'unpaired-row'">
+                <td style="text-align:left;font-weight:500">{{row.name}}</td>
+                <td>{{fmt(row.untuned.psnr)}}<span class="count-tag" v-if="row.untunedCount>1"> ({{row.untunedCount}})</span></td>
+                <td>{{fmt(row.tuned.psnr)}}<span class="count-tag" v-if="row.tunedCount>1"> ({{row.tunedCount}})</span></td>
+                <td :class="row.dPsnr != null ? (row.dPsnr >= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dPsnr)}}</td>
+                <td>{{fmt(row.untuned.ssim)}}</td>
+                <td>{{fmt(row.tuned.ssim)}}</td>
+                <td :class="row.dSsim != null ? (row.dSsim >= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dSsim)}}</td>
+                <td>{{fmt(row.untuned.rmse)}}</td>
+                <td>{{fmt(row.tuned.rmse)}}</td>
+                <td :class="row.dRmse != null ? (row.dRmse <= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dRmse)}}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="compareSummary.count" class="compare-summary">
+            <span>已配对样本数：{{compareSummary.count}}</span>
+            <span class="sum-good" v-if="compareSummary.dPsnr != null">平均 ΔPSNR：{{compareSummary.dPsnr >= 0 ? '+' : ''}}{{compareSummary.dPsnr}} dB</span>
+            <span class="sum-good" v-if="compareSummary.dSsim != null">平均 ΔSSIM：{{compareSummary.dSsim >= 0 ? '+' : ''}}{{compareSummary.dSsim}}</span>
+            <span class="sum-good" v-if="compareSummary.dRmse != null">平均 ΔRMSE：{{compareSummary.dRmse}}</span>
+          </div>
+          <div v-if="!compareByDataset.length" class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成配对对比数据。</div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <h3>证据一 · 论文定量结果 (Signal Processing 243 (2026) 110417)</h3>
-      <div class="metrics">
-        <div class="metric"><div class="v">+2.04 dB</div><div class="k">较BM3D平均PSNR提升 (16组实验全部为正)</div></div>
-        <div class="metric"><div class="v">+4.19 dB</div><div class="k">复杂纹理图像最大提升 (Baboon/Brick Wall)</div></div>
-        <div class="metric"><div class="v">2大数据集</div><div class="k">Set12 + BSDS300 · g3/g5噪声 · σ=5~35</div></div>
-        <div class="metric"><div class="v">≈持平</div><div class="k">计算耗时与BM3D基本相当</div></div>
-      </div>
-      <div ref="bInnoEl" class="chart" style="height:300px"></div>
-      <div style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.9">
-        ⬆️ 纹理越复杂的图像, VT-BM3D领先BM3D越多 —— 恰好证明“结构感知”创新命中了BM3D的要害:
-        传统方法最容易把复杂纹理当噪声抹掉, 而VT-BM3D把它们保护了下来。完整数据见「论文结果」页。
-      </div>
-    </div>
-    <div class="card">
-      <h3>证据二 · 消融实验: 每个创新组件都不可或缺</h3>
-      <div style="overflow-x:auto" v-if="paper">
-        <table class="mtable">
-          <tr><th>配置</th><th>Set12 PSNR</th><th>BSDS300 PSNR</th><th>相比完整版</th></tr>
-          <tr v-for="r in paper.table3_ablation">
-            <td><b>{{r.removed}}</b></td>
-            <td>{{r.set12_psnr}}</td><td>{{r.bsds300_psnr}}</td>
-            <td style="white-space:normal" :style="{color:ablNote(r)==='基准 (全部创新组件都在)'?'var(--accent)':'var(--bad)'}">{{ablNote(r)}}</td>
-          </tr>
-        </table>
-      </div>
-      <div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.9">
-        把任一创新组件(局部方差项 / 结构张量项 / 双路融合)拿掉, PSNR都会下降 ——
-        说明提升不是巧合, 而是每一项设计都在真实贡献。
-      </div>
-    </div>
-    <div class="card">
-      <h3>创新加成 · AI智能体让参数“活”起来</h3>
-      <div style="font-size:14px;color:var(--muted);line-height:2.1">
-        论文中 α=0.4、β=0.6、texture_boost=1.4 是固定经验值;
-        本系统的AI智能体会<b style="color:var(--text)">逐图分析噪声σ、边缘密度、纹理复杂度、结构相干性</b>,
-        为每张图量身定制这组参数并给出理由, 处理后还会反思重试 ——
-        把论文的“固定配方”升级为“智能配方”。实测效果见「论文结果」页的AI处理记录存档。
-      </div>
-    </div>
-  </div>
 
-  <div class="main" v-show="tab==='api'">
-    <div class="card">
-      <h3>LLM 接入状态</h3>
-      <div style="font-size:14px;line-height:2.2" v-if="apiStats">
-        <span class="tag">模型: {{apiStats.model}}</span>
-        <span class="tag">接入点: {{apiStats.base_url}}</span>
-        <span class="tag" :style="{color:apiStats.configured?'var(--good)':'var(--bad)'}">
-          {{apiStats.configured?'✓ API Key已配置(服务器端)':'✗ 未配置API Key'}}</span>
-        <span class="tag" v-if="modelCheck" :style="{color:modelCheck.reachable?'var(--good)':'var(--bad)'}">
-          {{modelCheck.reachable?('✓ 模型可达 · 延迟 '+modelCheck.latency_s+'s'):('✗ '+modelCheck.detail)}}</span>
-      </div>
-      <button class="btn" style="max-width:260px" :disabled="checking" @click="checkModel">
-        <span v-if="checking"><span class="spinner"></span>检测中…</span>
-        <span v-else>📡 检测模型可达性</span>
-      </button>
-    </div>
-    <div class="card" v-if="apiStats">
-      <h3>API 使用统计</h3>
-      <div class="metrics">
-        <div class="metric"><div class="v">{{apiStats.today.calls}}</div><div class="k">今日调用次数</div></div>
-        <div class="metric"><div class="v">{{apiStats.today.input_tokens+apiStats.today.output_tokens}}</div><div class="k">今日消耗 tokens</div></div>
-        <div class="metric"><div class="v">{{apiStats.total.calls}}</div><div class="k">累计调用次数</div></div>
-        <div class="metric"><div class="v">{{apiStats.total.input_tokens+apiStats.total.output_tokens}}</div><div class="k">累计消耗 tokens</div></div>
-      </div>
-      <div ref="apiChartEl" class="chart" style="height:260px"></div>
-    </div>
-    <div class="card" v-if="apiStats && apiStats.recent.length">
-      <h3>最近调用记录</h3>
-      <div style="overflow-x:auto">
-        <table class="mtable">
-          <tr><th>时间</th><th>用途</th><th>输入 tokens</th><th>输出 tokens</th><th>耗时(s)</th><th>状态</th></tr>
-          <tr v-for="r in apiStats.recent.slice(0,15)">
-            <td>{{r.time}}</td><td>{{r.purpose}}</td><td>{{r.input_tokens}}</td>
-            <td>{{r.output_tokens}}</td><td>{{r.latency_s}}</td>
-            <td :style="{color:r.ok?'var(--good)':'var(--bad)'}">{{r.ok?'成功':'失败'}}</td>
-          </tr>
-        </table>
-      </div>
-    </div>
-  </div>
+      <!-- 算法评测 -->
+      <div v-if="tab==='bench'">
+        <div class="card" style="margin-bottom:16px">
+          <h3>论文主架构 — VT-BM3D 结构感知协同滤波</h3>
+          <img class="arch-img" src="/static/assets/VT-BM3D-architecture.png" alt="VT-BM3D architecture">
+          <p class="muted arch-caption">本文提出的 VT-BM3D 在经典 BM3D 两阶段协同滤波框架中嵌入结构感知模块：首先对含噪图像提取局部方差、结构张量最大特征值与 Canny 边缘，融合为结构显著性图 S；随后通过幂律函数生成自适应匹配阈值 τ，动态控制相似块分组；第一阶段由硬阈值去噪得到基础估计，第二阶段在基础估计引导下经 Wiener 滤波与聚合得到最终估计。强滤波负责平坦区域充分去噪，弱滤波（σ / texture_boost）保护边缘与纹理，并按 S 逐像素加权融合，实现去噪与保细节的优化平衡。</p>
+        </div>
 
-  <div class="footer">MedDenoise-Agent · 新疆大学软件学院小学期实训项目 · Python + PyTorch + BM3D + Vue3 + ECharts</div>
+        <div class="innovation-grid">
+          <div class="card inno-card">
+            <h4>创新点一：结构感知自适应阈值</h4>
+            <div class="formula">C' = α·V_norm + β·λ_norm</div>
+            <div class="formula">τ_adaptive = τ_min + (τ_max − τ_min)·(C')^γ</div>
+            <div class="inno-body muted">
+              <p>局部方差 V 反映区域内容复杂度，纹理密集或边缘处 V 较大；结构张量最大特征值 λ 反映边缘/纹理的方向性与强度，λ 越大说明局部结构越明显。</p>
+              <p>将 V 与 λ 分别归一化后加权融合为结构代价 C'，经幂律映射生成自适应匹配阈值 τ_adaptive：平坦区 C' 小、阈值低，块匹配更严格，更好抑制噪声；边缘/纹理区 C' 大、阈值高，允许更多相似块参与重建，保护细节。</p>
+              <p>γ 控制阈值变化的灵敏度：γ > 1 时，高结构代价区域阈值迅速放大，避免过度平滑强边缘。Agent 可根据边缘密度与噪声类型进一步调整 α、β 与 γ，实现参数自适应。</p>
+            </div>
+            <div ref="thresholdChart" style="height:220px"></div>
+          </div>
+          <div class="card inno-card">
+            <h4>创新点二：边缘保护与纹理增强</h4>
+            <div class="inno-body muted">
+              <p>Canny 边缘检测得到的中心像素参与结构张量计算，使边缘位置 λ 被进一步增强；同时当局部方差与最大特征值均超过阈值时判定为纹理区，对匹配阈值乘以 texture_boost 继续放大，保留高频细节。</p>
+              <ul style="padding-left:18px;line-height:2;margin-top:8px">
+                <li><strong>强 BM3D：</strong> σ × 1.15，适用于噪声水平高、结构信息弱的平坦区域，充分去噪；</li>
+                <li><strong>弱 BM3D：</strong> σ / texture_boost，适用于边缘/纹理区域，避免过度平滑细节；</li>
+                <li><strong>融合策略：</strong> fused = (1 − S)·strong + S·weak，S 为结构显著性图，取值 0~1，结构越显著越偏向弱滤波。</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card inno-card">
+            <h4>创新点三：噪声建模与自适应变换选择</h4>
+            <div class="inno-body muted">
+              <p>针对医学影像和实际场景中常见的结构化噪声（如高频对角条纹 g3、周期网格 g5），本文设置差异化超参数进行专门建模，而不是对所有噪声类型采用统一参数。</p>
+              <p>在基础估计阶段使用离散正弦变换 DST 更好地稀疏化周期性和条纹干扰，降低伪影；在最终估计阶段恢复离散余弦变换 DCT，完成紧凑重建并保持自然图像的平滑过渡。</p>
+              <table class="data-table" style="margin-top:10px">
+                <thead><tr><th>参数</th><th>g3</th><th>g5</th></tr></thead>
+                <tbody>
+                  <tr><td>τ_max</td><td>7000</td><td>7200</td></tr>
+                  <tr><td>γ</td><td>2.5</td><td>2.6</td></tr>
+                  <tr><td>texture_boost</td><td>1.4</td><td>1.5</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API监控 -->
+      <div v-if="tab==='api'">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
+          <h2 style="margin:0; font-size:18px; color:var(--primary)">API 使用监控</h2>
+          <div style="display:flex; gap:10px; align-items:center">
+            <span class="muted" style="font-size:12px">模型: {{stats && stats.model || '-'}} · 状态: <span :style="{color: apiConfigured ? 'var(--success)' : 'var(--danger)', fontWeight:700}">{{ apiConfigured ? '已配置' : '未配置' }}</span></span>
+            <button class="btn-ghost" @click="loadStats" style="font-size:12px; padding:6px 12px">刷新</button>
+          </div>
+        </div>
+
+        <div class="stats-grid" v-if="stats">
+          <div class="card stat-card">
+            <div class="num">{{todayTokens}}</div>
+            <div class="label">今日 Token 消耗</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">{{stats.today.calls}} 次调用</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{formatCostShort(stats.today.cost)}}</div>
+            <div class="label">今日费用 ($)</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">累计占比 {{todayCostPct}}%</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{stats.week.calls}}</div>
+            <div class="label">近 7 天调用</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">{{weekTokens}} tokens</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{avgLatency}}</div>
+            <div class="label">平均响应</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">近 5 次</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px" v-if="stats">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+            <h3 style="margin:0">调用趋势</h3>
+            <span class="muted" style="font-size:12px">最近 7 天</span>
+          </div>
+          <div ref="apiTrendChart" style="height:300px"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3>模型配置与限额</h3>
+          <div class="control-inline">
+            <span class="muted">当前模型: {{stats.model}} @ {{stats.base_url}}</span>
+            <label>选择模型</label>
+            <select v-model="newConfig.model">
+              <option v-for="m in modelList" :key="m.id" :value="m.id">{{m.name}}</option>
+            </select>
+            <label>单次最大 token</label>
+            <input type="number" min="200" max="8000" v-model.number="newConfig.max_tokens">
+            <button class="btn" @click="saveApiConfig" :disabled="savingConfig">保存</button>
+            <button class="btn-ghost" @click="checkModel" :disabled="checking">{{ checking ? '检测中...' : '检测连通性' }}</button>
+          </div>
+          <div v-if="checkResult" class="muted" style="margin-top:8px">{{ checkResult.reachable ? '连通' : '未连通' }} — {{ checkResult.detail }} ({{checkResult.latency_s || 0}}s)</div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3>近 5 次调用详情</h3>
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>用途</th><th>模型</th><th>输入 token</th><th>输出 token</th><th>费用 ($)</th><th>耗时</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr v-for="r in recent5" :key="r.time+r.purpose"><td>{{r.time}}</td><td>{{r.purpose}}</td><td>{{r.model}}</td><td>{{r.input_tokens}}</td><td>{{r.output_tokens}}</td><td>{{r.cost}}</td><td>{{r.latency_s}}s</td><td :style="{color:r.ok?'var(--success)':'var(--danger)'}">{{r.ok?'成功':'失败'}}</td></tr>
+            </tbody>
+          </table>
+          <div v-if="!recent5.length" class="muted">暂无调用记录</div>
+        </div>
+      </div>
+    </div>
+  </template>
 </div>
 
 <script>
-const {createApp} = Vue;
+const { createApp, nextTick } = Vue;
+
 createApp({
-  data(){return{
-    tab:'run', samples:[], sampleId:'', file:null, addNoise:true, sigma:25,
-    running:false, stageIdx:-1, result:null, bench:[], paper:null,
-    thoughts:[], plan:null, usedLLM:false,
-    aiHistory:[], apiStats:null, modelCheck:null, checking:false,
-    chatLog:[], chatText:'', chatBusy:false, chatInit:false,
-    quickQs:['用σ=25处理Set12第5张','介绍一下VT-BM3D','分析我最近的处理记录','论文里提升了多少','α和beta_tensor怎么调','你是怎么决策的'],
-    stages:[{name:'感知分析',icon:'🔍'},{name:'AI分析与思路',icon:'🧠'},{name:'AI调参方案',icon:'🎛️'},{name:'执行VT-BM3D',icon:'⚙️'},{name:'结果分析',icon:'📈'}]
-  }},
-  async mounted(){
-    this.samples = await (await fetch('/api/samples')).json();
+  data() {
+    return {
+      token: localStorage.getItem('mda_token') || '',
+      loggedIn: false,
+      user: {},
+      authTab: 'login',
+      loginForm: { username: '', password: '' },
+      registerForm: { username: '', email: '', code: '', password: '', confirm: '' },
+      resetForm: { email: '', code: '', password: '', confirm: '' },
+      registerCodeSending: false,
+      resetCodeSending: false,
+      registerCodeTimer: 0,
+      resetCodeTimer: 0,
+      registerExpectedCode: '',
+      resetExpectedCode: '',
+      toast: '',
+      loading: false,
+      tab: 'run',
+      tabs: [
+        { key: 'run', label: '智能处理' },
+        { key: 'chat', label: '智能对话' },
+        { key: 'paper', label: '论文结果' },
+        { key: 'bench', label: '算法评测' },
+        { key: 'api', label: 'API监控' },
+      ],
+      samples: [],
+      sample_id: '',
+      file: null,
+      previewUrl: '',
+      previewIsObject: false,
+      add_noise: true,
+      sigma: 25,
+      running: false,
+      currentThinking: '',
+      perception: null,
+      result: null,
+      stageNames: ['感知分析','AI分析意见与处理思路','AI调参方案','微调VT-BM3D','执行VT-BM3D','处理结果分析'],
+      currentStage: '',
+      stageStatus: {},
+      history: [],
+      chatMessages: [
+        { role: 'ai', content: '你好, 我是 MedDenoise-Agent 智能助手。可以为你讲解 VT-BM3D 论文、分析去噪参数, 或帮你调用右侧快捷问题。' }
+      ],
+      chatInput: '',
+      chatSending: false,
+      paper: null,
+      benchmark: null,
+      stats: null,
+      modelList: [],
+      newConfig: { model: 'gpt-5.4', max_tokens: 1200 },
+      savingConfig: false,
+      checkResult: null,
+      checking: false,
+      charts: {},
+      quickQuestions: [
+        'VT-BM3D 的核心创新是什么',
+        '怎样根据边缘密度调参',
+        '解释 texture_boost 的作用',
+        'Agent 微调和初始方案有什么不同',
+      ]
+    };
   },
-  computed:{
-    benchMethods(){ return [...new Set(this.bench.map(r=>r.method))].filter(m=>m!=='noisy'); },
-    benchSigmas(){ return [...new Set(this.bench.map(r=>r.sigma))]; }
-  },
-  methods:{
-    onFile(e){ this.file = e.target.files[0] || null; },
-    toolName(t){ return ({analyze_image:'感知分析',denoise_image:'图像去噪',enhance_image:'质量增强',evaluate_quality:'质量评估'})[t]||t; },
-    zhKey(k){ return ({method:'算法',sigma:'噪声σ',status:'状态',psnr:'PSNR',ssim:'SSIM',rmse:'RMSE',
-      laplacian_sharpness:'清晰度',gradient_energy:'梯度能量',entropy:'信息熵',
-      estimated_sigma:'估计噪声σ',noise_level:'噪声等级',modality:'模态',edge_density:'边缘密度',
-      texture_complexity:'纹理复杂度',mean_coherence:'平均相干性',dynamic_range:'动态范围'})[k]||k; },
-    zhVal(v){ return ({ok:'成功',high:'高',medium:'中',low:'低',unsharp:'锐化(Unsharp)',clahe:'对比度(CLAHE)',gamma:'伽马校正'})[v]||v; },
-    fmtArgs(a){ return Object.entries(a||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
-    fmtRes(r){ return Object.entries(r||{}).map(([k,v])=>`${this.zhKey(k)}: ${this.zhVal(v)}`).join(' · '); },
-    mdToHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/^#{1,4}\s*(.+)$/gm,'<b style="color:var(--accent)">$1</b>')
-      .replace(/^---+$/gm,'').replace(/^[-*]\s+/gm,'• ')
-      .replace(/^>\s?/gm,'')
-      .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>')
-      .replace(/^\|(.+)\|$/gm,(l)=>l)
-      .split('\n').map(l=>{
-        if(/^\|.*\|$/.test(l)){
-          const cells=l.slice(1,-1).split('|').map(c=>c.trim());
-          if(cells.every(c=>/^-+$/.test(c))) return '';
-          return '<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>';
-        }
-        return l;
-      }).join('\n').replace(/(<tr>[\s\S]*<\/tr>)/,'<table>$1</table>').replace(/\n{2,}/g,'\n\n'); },
-    switchChat(){
-      this.tab='chat';
-      if(!this.chatInit){
-        this.chatInit=true;
-        this.chatLog.push({role:'agent',html:this.mdToHtml('你好! 我是医学影像去噪Agent。你可以直接用中文让我处理图像、讲解算法原理、查询论文结论与实验数据。试试下方的快捷提问, 或者直接输入。')});
+  computed: {
+    apiConfigured() { return this.stats && this.stats.configured; },
+    paperFigures() {
+      if (!this.paper || !this.paper.representative_images) return [];
+      const files = ['Baboon.png','Brick-Wall.png'];
+      return this.paper.representative_images.slice(0, 2).map((it, i) => ({
+        src: '/static/assets/' + files[i],
+        caption: `${it.image} (${it.noise}, σ=${it.sigma}) — BM3D PSNR ${it.bm3d_psnr} dB, VT-BM3D PSNR ${it.vtbm3d_psnr} dB`
+      }));
+    },
+    todayTokens() {
+      if (!this.stats || !this.stats.today) return '-';
+      const t = (this.stats.today.input_tokens || 0) + (this.stats.today.output_tokens || 0);
+      return t.toLocaleString();
+    },
+    weekTokens() {
+      if (!this.stats || !this.stats.week) return '-';
+      const t = (this.stats.week.input_tokens || 0) + (this.stats.week.output_tokens || 0);
+      return t.toLocaleString();
+    },
+    avgLatency() {
+      if (!this.stats || !this.stats.recent) return '-';
+      const lat = this.stats.recent.slice(0, 5).map(r => r.latency_s || 0).filter(v => v > 0);
+      if (!lat.length) return '-';
+      return (lat.reduce((a, b) => a + b, 0) / lat.length).toFixed(1) + 's';
+    },
+    todayCostPct() {
+      if (!this.stats || !this.stats.total || !this.stats.total.cost) return '0.0';
+      return Number(((this.stats.today.cost || 0) / this.stats.total.cost * 100).toFixed(1));
+    },
+    compareByDataset() {
+      // 优先使用论文数据中的预置配对基线（同一样本，含未调参与 Agent 调参）
+      if (this.paper && this.paper.tuned_comparison && this.paper.tuned_comparison.length) {
+        return this.paper.tuned_comparison.map(r => {
+          const u = r.untuned || {}, t = r.tuned || {};
+          const name = (r.source || '未命名').replace(/^med_/, '');
+          const row = {
+            name,
+            untuned: { psnr: u.psnr, ssim: u.ssim, rmse: u.rmse },
+            tuned: { psnr: t.psnr, ssim: t.ssim, rmse: t.rmse },
+            paired: true,
+            untunedCount: 1,
+            tunedCount: 1
+          };
+          if (u.psnr != null && t.psnr != null) row.dPsnr = Number((t.psnr - u.psnr).toFixed(2));
+          if (u.ssim != null && t.ssim != null) row.dSsim = Number((t.ssim - u.ssim).toFixed(3));
+          if (u.rmse != null && t.rmse != null) row.dRmse = Number((t.rmse - u.rmse).toFixed(4));
+          return row;
+        });
       }
-    },
-    async sendChat(preset){
-      const text=(preset||this.chatText).trim();
-      if(!text||this.chatBusy) return;
-      this.chatText='';
-      this.chatLog.push({role:'user',html:this.mdToHtml(text),raw:text});
-      this.chatBusy=true;
-      this.scrollChat();
-      try{
-        const fd=new FormData(); fd.append('message',text);
-        fd.append('history',JSON.stringify(this.chatLog.slice(-8).map(m=>({role:m.role==='user'?'user':'assistant',content:m.raw||''}))));
-        const res=await (await fetch('/api/chat',{method:'POST',body:fd})).json();
-        this.chatLog.push({role:'agent',html:this.mdToHtml(res.reply),raw:res.reply,images:res.images||null});
-      }catch(e){
-        this.chatLog.push({role:'agent',html:'抱歉, 处理出错了, 请重试。'});
-      }finally{ this.chatBusy=false; this.scrollChat(); }
-    },
-    scrollChat(){ this.$nextTick(()=>{ const el=this.$refs.chatlog; if(el) el.scrollTop=el.scrollHeight; }); },
-    async run(){
-      if(!this.file && !this.sampleId){ alert('请上传图像或选择示例'); return; }
-      this.running = true; this.result = null; this.stageIdx = 0;
-      this.thoughts = []; this.plan = null;
-      try{
-        const fd = new FormData();
-        if(this.file) fd.append('file', this.file);
-        fd.append('sample_id', this.sampleId);
-        fd.append('add_noise', this.addNoise);
-        fd.append('sigma', this.sigma);
-        const resp = await fetch('/api/ai_process',{method:'POST',body:fd});
-        const reader = resp.body.getReader();
-        const dec = new TextDecoder();
-        let buf='';
-        while(true){
-          const {done,value} = await reader.read();
-          if(done) break;
-          buf += dec.decode(value,{stream:true});
-          let idx;
-          while((idx=buf.indexOf('\n\n'))>=0){
-            const chunk=buf.slice(0,idx); buf=buf.slice(idx+2);
-            if(!chunk.startsWith('data: ')) continue;
-            const ev=JSON.parse(chunk.slice(6));
-            if(ev.type==='stage'){
-              this.stageIdx = ({'感知分析':0,'AI分析意见与处理思路':1,'AI调参方案':2,'执行VT-BM3D':3,'处理结果分析':4})[ev.stage] ?? this.stageIdx;
-            }
-            else if(ev.type==='thinking'){ this.thoughts.push({stage:ev.stage,text:ev.text}); this.scrollThink(); }
-            else if(ev.type==='decision'){ this.plan = ev.plan; this.usedLLM = !!ev.llm; }
-            else if(ev.type==='result'){
-              this.result = ev; this.plan = ev.plan; this.usedLLM = !!ev.llm;
-              this.$nextTick(()=>this.drawRadar());
-            }
-          }
+      if (!this.history.length) return [];
+      const groups = {};
+      this.history.filter(h => h.evaluation).forEach(h => {
+        const e = h.evaluation;
+        const name = ((h.source || '未命名')).replace(/^med_/, '');
+        if (!groups[name]) groups[name] = { name, untuned: [], tuned: [] };
+        groups[name][h.llm ? 'tuned' : 'untuned'].push(e);
+      });
+      const avg = (arr, key, digits) => {
+        const vs = arr.map(e => e[key]).filter(v => v != null);
+        if (!vs.length) return null;
+        return Number((vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(digits));
+      };
+      const rows = [];
+      Object.keys(groups).sort().forEach(name => {
+        const g = groups[name];
+        const u = {
+          psnr: avg(g.untuned, 'psnr', 2),
+          ssim: avg(g.untuned, 'ssim', 3),
+          rmse: avg(g.untuned, 'rmse', 4)
+        };
+        const t = {
+          psnr: avg(g.tuned, 'psnr', 2),
+          ssim: avg(g.tuned, 'ssim', 3),
+          rmse: avg(g.tuned, 'rmse', 4)
+        };
+        const row = { name, untuned: u, tuned: t, paired: g.untuned.length && g.tuned.length, untunedCount: g.untuned.length, tunedCount: g.tuned.length };
+        if (row.paired) {
+          if (u.psnr != null && t.psnr != null) row.dPsnr = Number((t.psnr - u.psnr).toFixed(2));
+          if (u.ssim != null && t.ssim != null) row.dSsim = Number((t.ssim - u.ssim).toFixed(3));
+          if (u.rmse != null && t.rmse != null) row.dRmse = Number((t.rmse - u.rmse).toFixed(4));
         }
-      } catch(e){ alert('处理出错: '+e); }
-      finally { this.running=false; this.stageIdx=5; }
+        rows.push(row);
+      });
+      return rows;
     },
-    scrollThink(){ this.$nextTick(()=>{ const el=document.querySelector('.think'); if(el) el.scrollTop=el.scrollHeight; }); },
-    drawRadar(){
-      const p = this.result.perception;
-      const chart = echarts.init(this.$refs.radarEl, null, {renderer:'canvas'});
-      chart.setOption({
-        backgroundColor:'transparent',
-        radar:{indicator:[
-          {name:'噪声强度',max:50},{name:'边缘密度',max:0.5},
-          {name:'纹理复杂度',max:0.05},{name:'相干性',max:1},{name:'动态范围',max:1}],
-          splitArea:{show:false}, axisLine:{lineStyle:{color:'#233250'}},
-          splitLine:{lineStyle:{color:'#233250'}}, axisName:{color:'#8aa0c8'}},
-        series:[{type:'radar',data:[{value:[p.estimated_sigma,p.edge_density,
-          p.texture_complexity,p.mean_coherence,p.dynamic_range],name:'影像特征',
-          areaStyle:{color:'rgba(56,189,248,.25)'},lineStyle:{color:'#38bdf8'}}]}]
+    compareSummary() {
+      const paired = this.compareByDataset.filter(r => r.paired);
+      const dps = paired.map(r => r.dPsnr).filter(v => v != null);
+      const dss = paired.map(r => r.dSsim).filter(v => v != null);
+      const dr = paired.map(r => r.dRmse).filter(v => v != null);
+      return {
+        count: paired.length,
+        dPsnr: dps.length ? Number((dps.reduce((a, b) => a + b, 0) / dps.length).toFixed(2)) : null,
+        dSsim: dss.length ? Number((dss.reduce((a, b) => a + b, 0) / dss.length).toFixed(3)) : null,
+        dRmse: dr.length ? Number((dr.reduce((a, b) => a + b, 0) / dr.length).toFixed(4)) : null
+      };
+    },
+    recent5() { return this.stats && this.stats.recent ? this.stats.recent.slice(0,5) : []; },
+    sampleName() {
+      const s = this.samples.find(x => x.id === this.sample_id);
+      return s ? s.name : '';
+    },
+    previewLabel() {
+      if (this.file) return '上传预览' + (this.add_noise ? '（实际将加入 σ=' + this.sigma + ' 噪声）' : '');
+      if (this.sampleName) return this.sampleName + (this.add_noise ? ' — σ=' + this.sigma + ' 噪声模拟' : ' — 原始图像');
+      return '';
+    },
+    stageProgress() {
+      const total = this.stageNames.length;
+      if (!total) return 0;
+      let done = 0, active = 0;
+      this.stageNames.forEach(s => {
+        const st = this.stageStatus[s];
+        if (st === 'done') done++;
+        else if (st === 'active' || this.currentStage === s) active++;
+      });
+      if (this.running && done === 0 && active === 0) return 5;
+      return Math.min(100, Math.round((done + (active ? 0.5 : 0)) / total * 100));
+    },
+    prettyMetrics() {
+      if (!this.result || !this.result.evaluation) return {};
+      const out = {};
+      ['psnr','ssim','rmse','laplacian_sharpness','gradient_energy','entropy','processing_time_s'].forEach(k => {
+        if (k in this.result.evaluation && typeof this.result.evaluation[k] === 'number') out[k] = this.metricFmt(k, this.result.evaluation[k]);
+      });
+      for (const [k, v] of Object.entries(this.result.evaluation)) {
+        if (!(k in out) && typeof v === 'number') out[k] = this.metricFmt(k, v);
+      }
+      return out;
+    }
+  },
+  async mounted() {
+    if (this.token) {
+      const r = await this.authFetch('/api/auth/me');
+      if (r && r.ok) {
+        this.loggedIn = true;
+        this.user = { username: r.username };
+        this.loadSamples();
+        this.loadHistory();
+        this.loadPaper();
+        this.loadBenchmark();
+        this.loadStats();
+        this.loadModels();
+      } else {
+        this.token = '';
+        localStorage.removeItem('mda_token');
+      }
+    }
+    window.addEventListener('resize', this.resizeCharts);
+  },
+  methods: {
+    fmt(v) { return v != null ? v : '-'; },
+    // auth
+    async login() {
+      this.loading = true; this.toast = '';
+      const form = new URLSearchParams(this.loginForm);
+      const r = await fetch('/api/auth/login', { method: 'POST', body: form }).then(x=>x.json());
+      this.loading = false;
+      if (r.ok) {
+        this.token = r.token;
+        localStorage.setItem('mda_token', r.token);
+        this.loggedIn = true;
+        this.user = { username: r.username };
+        this.loadSamples(); this.loadHistory(); this.loadPaper(); this.loadBenchmark(); this.loadStats(); this.loadModels();
+      } else { this.toast = r.detail || '登录失败'; }
+    },
+    async register() {
+      if (!this.registerForm.code) { this.toast = '请输入邮箱验证码'; return; }
+      if (this.registerForm.code !== this.registerExpectedCode) { this.toast = '验证码错误'; return; }
+      if (this.registerForm.password !== this.registerForm.confirm) { this.toast = '两次输入密码不一致'; return; }
+      this.loading = true; this.toast = '';
+      const { code, confirm, ...payload } = this.registerForm;
+      const form = new URLSearchParams(payload);
+      const r = await fetch('/api/auth/register', { method: 'POST', body: form }).then(x=>x.json());
+      this.loading = false;
+      if (r.ok) { this.toast = '注册成功, 请登录'; this.authTab = 'login'; this.registerForm = { username: '', email: '', code: '', password: '', confirm: '' }; this.registerExpectedCode = ''; }
+      else { this.toast = r.detail || '注册失败'; }
+    },
+    async resetPwd() {
+      if (!this.resetForm.email) { this.toast = '请输入注册邮箱'; return; }
+      if (!this.resetForm.code) { this.toast = '请输入邮箱验证码'; return; }
+      if (this.resetForm.code !== this.resetExpectedCode) { this.toast = '验证码错误'; return; }
+      if (this.resetForm.password !== this.resetForm.confirm) { this.toast = '两次输入密码不一致'; return; }
+      this.loading = true; this.toast = '';
+      const { code, confirm, ...payload } = this.resetForm;
+      const form = new URLSearchParams(payload);
+      const r = await fetch('/api/auth/reset', { method: 'POST', body: form }).then(x=>x.json());
+      this.loading = false;
+      if (r.ok) { this.toast = '密码已重置, 请登录'; this.authTab = 'login'; this.resetForm = { email: '', code: '', password: '', confirm: '' }; this.resetExpectedCode = ''; }
+      else { this.toast = r.detail || '重置失败'; }
+    },
+    sendRegisterCode() {
+      if (!this.registerForm.email) { this.toast = '请先填写邮箱'; return; }
+      this.registerCodeSending = true; this.toast = '';
+      setTimeout(() => {
+        this.registerExpectedCode = Math.floor(100000 + Math.random()*900000).toString();
+        this.registerCodeSending = false;
+        this.registerCodeTimer = 60;
+        const ti = setInterval(() => { this.registerCodeTimer--; if (this.registerCodeTimer <= 0) clearInterval(ti); }, 1000);
+      }, 600);
+    },
+    sendResetCode() {
+      if (!this.resetForm.email) { this.toast = '请先填写邮箱'; return; }
+      this.resetCodeSending = true; this.toast = '';
+      setTimeout(() => {
+        this.resetExpectedCode = Math.floor(100000 + Math.random()*900000).toString();
+        this.resetCodeSending = false;
+        this.resetCodeTimer = 60;
+        const ti = setInterval(() => { this.resetCodeTimer--; if (this.resetCodeTimer <= 0) clearInterval(ti); }, 1000);
+      }, 600);
+    },
+    async logout() {
+      await this.authFetch('/api/auth/logout', { method: 'POST' });
+      this.token = ''; localStorage.removeItem('mda_token'); this.loggedIn = false; this.user = {};
+    },
+    authFetch(url, opts={}) {
+      opts.headers = opts.headers || {};
+      opts.headers['Authorization'] = 'Bearer ' + this.token;
+      return fetch(url, opts).then(r => {
+        if (r.status === 401) { this.logout(); }
+        return r.json().catch(() => ({}));
       });
     },
-    async switchPaper(){
-      this.tab='paper';
-      const first = !this.paper;
-      if(first) this.paper = await (await fetch('/api/paper_results')).json();
-      if(!this.bench.length) this.bench = (await (await fetch('/api/benchmark')).json()).rows || [];
-      this.aiHistory = await (await fetch('/api/history')).json();
-      this.$nextTick(()=>{ if(first) this.drawPaper(); this.drawBench(); });
+
+    // common
+    onFileChange(e) {
+      const f = e.target.files[0];
+      this.releasePreview();
+      this.file = f; this.sample_id = '';
+      if (f) { this.previewUrl = URL.createObjectURL(f); this.previewIsObject = true; }
     },
-    drawPaper(){
-      const t2=this.paper.table2;
-      const sigmas=[5,15,25,35];
-      const base={backgroundColor:'transparent',legend:{textStyle:{color:'#8aa0c8'},top:24},
-        grid:{left:50,right:20,bottom:35,top:60},tooltip:{trigger:'axis'},
-        xAxis:{type:'category',data:sigmas.map(s=>'σ='+s),axisLabel:{color:'#8aa0c8'},axisLine:{lineStyle:{color:'#233250'}}},
-        yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}}};
-      const line=(el,title,ds)=>{
-        const c=echarts.init(this.$refs[el]);
-        const series=[];
-        for(const noise of ['g3','g5']) for(const [m,key] of [['BM3D','bm3d_psnr'],['VT-BM3D','vtbm3d_psnr']])
-          series.push({name:`${m} (${noise})`,type:'line',smooth:true,symbolSize:8,
-            lineStyle:{type:m==='BM3D'?'dashed':'solid'},
-            data:sigmas.map(s=>{const r=t2.find(x=>x.dataset===ds&&x.noise===noise&&x.sigma===s);return r?r[key]:null;})});
-        c.setOption({...base,title:{text:title,textStyle:{color:'#cfe0ff',fontSize:14},top:0,left:'center'},series});
-      };
-      line('pSet12El','Set12 平均PSNR (dB)','Set12');
-      line('pBsdEl','BSDS300 平均PSNR (dB)','BSDS300');
-      const cats=t2.map(r=>`${r.dataset} ${r.noise} σ${r.sigma}`);
-      const bar=(el,title,key,fmt)=>{
-        const c=echarts.init(this.$refs[el]);
-        c.setOption({backgroundColor:'transparent',
-          title:{text:title,textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-          grid:{left:55,right:20,bottom:80,top:40},tooltip:{},
-          xAxis:{type:'category',data:cats,axisLabel:{color:'#8aa0c8',rotate:45,fontSize:10}},
-          yAxis:{type:'value',axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-          series:[{type:'bar',barWidth:'55%',data:t2.map(r=>r[key]),
-            itemStyle:{borderRadius:[4,4,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,
-              [{offset:0,color:'#34d399'},{offset:1,color:'#38bdf8'}])},
-            label:{show:true,position:'top',color:'#e8eefc',fontSize:10,formatter:p=>fmt(p.value)}}]});
-      };
-      bar('pDeltaEl','ΔPSNR 提升 (dB)','delta_psnr',v=>'+'+v);
-      bar('pSsimEl','ΔSSIM 提升','delta_ssim',v=>'+'+v);
-      const repr=this.paper.representative_images;
-      const c1=echarts.init(this.$refs.pReprEl);
-      c1.setOption({backgroundColor:'transparent',
-        title:{text:'代表性图像 PSNR (σ=15)',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-        legend:{textStyle:{color:'#8aa0c8'},top:24},grid:{left:50,right:20,bottom:35,top:60},tooltip:{},
-        xAxis:{type:'category',data:repr.map(r=>`${r.image}(${r.noise})`),axisLabel:{color:'#8aa0c8'}},
-        yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-        series:[{name:'BM3D',type:'bar',data:repr.map(r=>r.bm3d_psnr),itemStyle:{color:'#64748b',borderRadius:[4,4,0,0]}},
-                {name:'VT-BM3D',type:'bar',data:repr.map(r=>r.vtbm3d_psnr),
-                 itemStyle:{color:'#38bdf8',borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:'#e8eefc'}}]});
-      const abl=this.paper.table3_ablation;
-      const c2=echarts.init(this.$refs.pAblEl);
-      c2.setOption({backgroundColor:'transparent',
-        title:{text:'消融实验 PSNR (dB)',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-        legend:{textStyle:{color:'#8aa0c8'},top:24},grid:{left:170,right:40,bottom:30,top:60},tooltip:{},
-        yAxis:{type:'category',data:abl.map(r=>r.removed).reverse(),axisLabel:{color:'#8aa0c8',fontSize:11}},
-        xAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-        series:[{name:'Set12',type:'bar',data:abl.map(r=>r.set12_psnr).reverse(),itemStyle:{color:'#818cf8',borderRadius:[0,4,4,0]}},
-                {name:'BSDS300',type:'bar',data:abl.map(r=>r.bsds300_psnr).reverse(),itemStyle:{color:'#38bdf8',borderRadius:[0,4,4,0]}}]});
+    releasePreview() {
+      if (this.previewIsObject && this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = ''; this.previewIsObject = false;
     },
-    async switchBench(){
-      this.tab='bench';
-      if(!this.paper) this.paper = await (await fetch('/api/paper_results')).json();
-      this.$nextTick(()=>this.drawInno());
+    onSampleChange() {
+      this.releasePreview();
+      this.file = null;
+      if (this.sample_id) { this.previewUrl = '/static/datasets/' + this.sample_id.replace(/^med_/, '') + '.png'; this.previewIsObject = false; }
     },
-    drawInno(){
-      if(!this.paper||!this.$refs.bInnoEl) return;
-      const repr=this.paper.representative_images;
-      const c=echarts.init(this.$refs.bInnoEl);
-      c.setOption({backgroundColor:'transparent',
-        title:{text:'同一张图, 两种算法: 纹理越复杂, 领先越多 (论文代表性图像, σ=15)',
-               textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-        legend:{textStyle:{color:'#8aa0c8'},top:26},tooltip:{},
-        grid:{left:50,right:20,bottom:35,top:65},
-        xAxis:{type:'category',data:repr.map(r=>`${r.image}(${r.noise})`),axisLabel:{color:'#8aa0c8'}},
-        yAxis:{type:'value',scale:true,name:'PSNR(dB)',axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-        series:[{name:'BM3D(传统)',type:'bar',data:repr.map(r=>r.bm3d_psnr),itemStyle:{color:'#64748b',borderRadius:[4,4,0,0]}},
-                {name:'VT-BM3D(创新)',type:'bar',data:repr.map(r=>r.vtbm3d_psnr),
-                 itemStyle:{color:'#34d399',borderRadius:[4,4,0,0]},
-                 label:{show:true,position:'top',color:'#e8eefc',fontSize:11,
-                   formatter:p=>'+'+(p.value-repr[p.dataIndex].bm3d_psnr).toFixed(2)}}]});
+    mdToHtml(t) {
+      if (!t) return '';
+      let s = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      s = s.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      s = s.replace(/\n/g, '<br>');
+      return s;
     },
-    async switchApi(){
-      this.tab='api';
-      this.apiStats = await (await fetch('/api/api_stats')).json();
-      this.$nextTick(()=>this.drawApi());
+    async loadSamples() {
+      const r = await this.authFetch('/api/samples');
+      this.samples = Array.isArray(r) ? r : [];
     },
-    async checkModel(){
-      this.checking=true;
-      try{ this.modelCheck = await (await fetch('/api/check_model',{method:'POST'})).json(); }
-      finally{ this.checking=false; this.switchApi(); }
+    async loadHistory() {
+      const r = await this.authFetch('/api/history');
+      this.history = Array.isArray(r) ? r : [];
     },
-    drawApi(){
-      if(!this.apiStats||!this.$refs.apiChartEl) return;
-      const days=Object.keys(this.apiStats.daily).sort().slice(-14);
-      const c=echarts.init(this.$refs.apiChartEl);
-      c.setOption({backgroundColor:'transparent',
-        title:{text:'每日 API 调用与 tokens',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-        legend:{textStyle:{color:'#8aa0c8'},top:24},tooltip:{trigger:'axis'},
-        grid:{left:55,right:55,bottom:35,top:60},
-        xAxis:{type:'category',data:days,axisLabel:{color:'#8aa0c8'}},
-        yAxis:[{type:'value',name:'调用次数',axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-               {type:'value',name:'tokens',axisLabel:{color:'#8aa0c8'},splitLine:{show:false}}],
-        series:[{name:'调用次数',type:'bar',barWidth:'40%',
-                 data:days.map(d=>this.apiStats.daily[d].calls),
-                 itemStyle:{borderRadius:[4,4,0,0],color:'#38bdf8'}},
-                {name:'tokens',type:'line',yAxisIndex:1,smooth:true,symbolSize:8,lineStyle:{color:'#818cf8'},itemStyle:{color:'#818cf8'},
-                 data:days.map(d=>this.apiStats.daily[d].input_tokens+this.apiStats.daily[d].output_tokens)}]});
+    stageState(idx) {
+      const name = this.stageNames[idx];
+      if (this.stageStatus[name] === 'active') return 'active';
+      if (this.stageStatus[name] === 'done') return 'done';
+      if (this.currentStage === name) return 'active';
+      return '';
     },
-    ablNote(r){
-      const full=this.paper.table3_ablation.find(x=>x.removed.includes('完整'));
-      if(!full||r===full) return '基准 (全部创新组件都在)';
-      const d=((r.set12_psnr-full.set12_psnr)+(r.bsds300_psnr-full.bsds300_psnr))/2;
-      return `平均下降 ${Math.abs(d).toFixed(2)} dB → 该组件确实有效`;
+    metricName(k) {
+      const names = { psnr: 'PSNR (dB)', ssim: 'SSIM', rmse: 'RMSE', laplacian_sharpness: '清晰度', laplacian: '清晰度', gradient_energy: '梯度能量', gradient: '梯度能量', entropy: '熵', processing_time_s: '耗时(s)' };
+      return names[k] || k;
     },
-    benchCell(m,s){
-      const r=this.bench.find(x=>x.method===m&&x.sigma===s);
-      return r?(`${(+r.psnr).toFixed(2)} / ${(+r.ssim).toFixed(4)}`):'-';
+    metricFmt(k, v) {
+      if (typeof v !== 'number') return v;
+      if (k === 'psnr') return v.toFixed(2);
+      if (k === 'ssim') return v.toFixed(3);
+      if (k === 'rmse') return v.toFixed(4);
+      if (k === 'processing_time_s') return v.toFixed(2);
+      return v.toFixed(3);
     },
-    drawBench(){
-      if(!this.bench.length) return;
-      const methods=[...new Set(this.bench.map(r=>r.method))].filter(m=>m!=='noisy');
-      const sigmas=[...new Set(this.bench.map(r=>r.sigma))];
-      const base={backgroundColor:'transparent',
-        legend:{textStyle:{color:'#8aa0c8'},top:0},
-        grid:{left:50,right:20,bottom:35,top:45},
-        xAxis:{type:'category',data:sigmas.map(s=>'σ='+s),axisLabel:{color:'#8aa0c8'},axisLine:{lineStyle:{color:'#233250'}}},
-        tooltip:{trigger:'axis'}};
-      const mk=(el,key,name,min)=>{
-        const c=echarts.init(this.$refs[el]);
-        c.setOption({...base,title:{text:name,textStyle:{color:'#cfe0ff',fontSize:14},top:0,left:'center'},
-          yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-          series:methods.map(m=>({name:m,type:'line',smooth:true,symbolSize:8,
-            data:sigmas.map(s=>{const r=this.bench.find(x=>x.sigma===s&&x.method===m);return r?+r[key]:null;})}))});
-      };
-      mk('psnrEl','psnr','PSNR (dB) 随噪声强度变化');
-      mk('ssimEl','ssim','SSIM 随噪声强度变化');
-      const c=echarts.init(this.$refs.barEl);
-      const s25=this.bench.filter(r=>r.sigma==='25'&&r.method!=='noisy');
-      c.setOption({backgroundColor:'transparent',
-        title:{text:'σ=25 各算法 PSNR 对比',textStyle:{color:'#cfe0ff',fontSize:14},left:'center'},
-        grid:{left:50,right:20,bottom:35,top:45}, tooltip:{},
-        xAxis:{type:'category',data:s25.map(r=>r.method),axisLabel:{color:'#8aa0c8'}},
-        yAxis:{type:'value',scale:true,axisLabel:{color:'#8aa0c8'},splitLine:{lineStyle:{color:'#1b2946'}}},
-        series:[{type:'bar',barWidth:'45%',data:s25.map(r=>+r.psnr),
-          itemStyle:{borderRadius:[6,6,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,
-            [{offset:0,color:'#38bdf8'},{offset:1,color:'#818cf8'}])},
-          label:{show:true,position:'top',color:'#e8eefc'}}]});
+    downloadResult() {
+      if (!this.result || !this.result.output_image) return;
+      const a = document.createElement('a');
+      a.href = this.result.output_image;
+      a.download = 'vtbm3d_result.png';
+      a.click();
+    },
+    resetRun() {
+      this.result = null; this.perception = null; this.currentThinking = '';
+      this.stageStatus = {}; this.currentStage = '';
+    },
+
+    // run
+    async runAI() {
+      this.running = true; this.result = null; this.perception = null; this.currentThinking = '';
+      this.currentStage = ''; this.stageStatus = {};
+      const form = new FormData();
+      if (this.file) form.append('file', this.file);
+      else if (this.sample_id) form.append('sample_id', this.sample_id);
+      else { alert('请选择示例或上传图片'); this.running = false; return; }
+      form.append('add_noise', this.add_noise);
+      form.append('sigma', this.sigma);
+      const res = await fetch('/api/ai_process', {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + this.token }, body: form
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          const m = line.trim().match(/^data:(.+)/s);
+          if (!m) continue;
+          try {
+            const ev = JSON.parse(m[1].trim());
+            if (ev.type === 'stage') { this.currentStage = ev.stage; this.stageStatus[ev.stage] = 'active'; }
+            if (ev.type === 'thinking') { this.currentThinking = ev.text; this.stageStatus[ev.stage] = 'active'; }
+            if (ev.type === 'decision') { this.currentThinking = ''; }
+            if (ev.type === 'perception') { this.perception = ev.perception; nextTick(() => this.renderRadar()); }
+            if (ev.type === 'result') { this.result = { ...ev, mode: 'Agent调参' }; this.currentThinking = ''; this.stageStatus[ev.stage || '处理结果分析'] = 'done'; this.loadHistory(); }
+            // mark previous stages done
+            let seen = false;
+            for (const s of this.stageNames) {
+              if (!seen) { if (this.stageStatus[s] === 'active') seen = true; else this.stageStatus[s] = 'done'; }
+            }
+          } catch (e) {}
+        }
+      }
+      this.running = false;
+    },
+    async runStd() {
+      this.running = true; this.result = null; this.perception = null;
+      const form = new FormData();
+      if (this.file) form.append('file', this.file);
+      else if (this.sample_id) form.append('sample_id', this.sample_id);
+      else { this.running = false; return; }
+      form.append('add_noise', this.add_noise);
+      form.append('sigma', this.sigma);
+      const r = await this.authFetch('/api/process', { method: 'POST', body: form });
+      this.running = false;
+      this.result = { input_image: r.input_image, output_image: r.output_image, reference_image: r.reference_image, evaluation: r.evaluation, mode: '标准处理' };
+      this.perception = r.perception;
+      nextTick(() => this.renderRadar());
+    },
+
+    // vis
+    renderRadar() {
+      if (!this.perception) return;
+      const el = this.$refs.radarChart; if (!el) return;
+      const p = this.perception;
+      const indicators = [
+        { name: '噪声 σ', max: Math.max(10, Number(p.estimated_sigma) * 1.5 || 1) },
+        { name: '边缘密度', max: 0.5 },
+        { name: '纹理复杂度', max: 0.7 },
+        { name: '结构相干性', max: 1 },
+        { name: '动态范围', max: 1 },
+        { name: '颗粒度', max: 1 },
+      ];
+      const data = [Number(p.estimated_sigma) || 0, Number(p.edge_density) || 0, Number(p.texture_complexity) || 0, Number(p.mean_coherence) || 0, Number(p.dynamic_range) || 0, Number(p.graininess) || 0];
+      if (this.charts.radar) this.charts.radar.dispose();
+      this.charts.radar = echarts.init(el);
+      this.charts.radar.setOption({
+        radar: { indicator: indicators, radius: '65%' },
+        series: [{ type: 'radar', data: [{ value: data, name: '影像感知', areaStyle: { color: 'rgba(18,46,138,0.2)' }, lineStyle: { color: '#122e8a' }, itemStyle: { color: '#122e8a' } }] }]
+      });
+    },
+
+    // chat
+    ask(q) { this.chatInput = q; this.sendChat(); },
+    async sendChat() {
+      const msg = this.chatInput.trim(); if (!msg) return;
+      this.chatMessages.push({ role: 'user', content: msg }); this.chatInput = '';
+      this.chatSending = true; nextTick(() => this.$refs.chatList.scrollTop = this.$refs.chatList.scrollHeight);
+      const form = new FormData(); form.append('message', msg);
+      const history = this.chatMessages.slice(-10).map(m => ({ role: m.role, content: m.content }));
+      form.append('history', JSON.stringify(history));
+      const r = await this.authFetch('/api/chat', { method: 'POST', body: form });
+      this.chatSending = false;
+      this.chatMessages.push({ role: 'ai', content: r.reply || '抱歉, 暂时没有回复。' });
+      if (r.images) {
+        r.images.forEach(img => this.chatMessages.push({ role: 'ai', content: `<div class='label'>${img.label}</div><img src='${img.src}' style='max-width:100%;border-radius:6px;'>` }));
+      }
+      nextTick(() => this.$refs.chatList.scrollTop = this.$refs.chatList.scrollHeight);
+    },
+
+    // paper
+    async loadPaper() {
+      this.paper = await this.authFetch('/api/paper_results');
+      nextTick(() => this.renderPaperChart());
+    },
+    async loadBenchmark() { this.benchmark = await this.authFetch('/api/benchmark'); },
+    renderPaperChart() {
+      if (!this.paper || !this.paper.table2) return;
+      const el = this.$refs.paperChart; if (!el) return;
+      if (this.charts.paper) this.charts.paper.dispose();
+      this.charts.paper = echarts.init(el);
+      const series = [];
+      ['Set12','BSDS300'].forEach(ds => {
+        ['g3','g5'].forEach(noise => {
+          const rows = this.paper.table2.filter(r => r.dataset===ds && r.noise===noise).sort((a,b)=>a.sigma-b.sigma);
+          series.push({ name: `${ds} ${noise} BM3D`, type: 'bar', data: rows.map(r=>r.bm3d_psnr.toFixed(2)), itemStyle:{opacity:.5} });
+          series.push({ name: `${ds} ${noise} VT-BM3D`, type: 'bar', data: rows.map(r=>r.vtbm3d_psnr.toFixed(2)) });
+        });
+      });
+      const xs = [5,15,25,35];
+      this.charts.paper.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { type: 'scroll', bottom: 0 },
+        grid: { left: '3%', right: '3%', bottom: '15%', containLabel: true },
+        xAxis: { type: 'category', data: xs.map(s=>`σ=${s}`) },
+        yAxis: { type: 'value', name: 'PSNR (dB)' },
+        series: series
+      });
+    },
+
+    // bench
+    async renderBenchCharts() {
+      await nextTick();
+      const el = this.$refs.thresholdChart; if (!el) return;
+      if (this.charts.threshold) this.charts.threshold.dispose();
+      this.charts.threshold = echarts.init(el);
+      const x = [];
+      for (let c=0;c<=100;c++) x.push((c/100).toFixed(2));
+      this.charts.threshold.setOption({
+        tooltip: {},
+        grid: { left:'12%', right:'8%', top:'10%', bottom:'15%' },
+        xAxis: { type: 'category', data: x, name: 'C\'' },
+        yAxis: { type: 'value', name: 'τ' },
+        series: [{ data: x.map(v => 1200 + (7000-1200)*Math.pow(parseFloat(v),2.5)), type: 'line', smooth:true, lineStyle:{color:'#122e8a'} }]
+      });
+    },
+
+    // api
+    async loadStats() {
+      this.stats = await this.authFetch('/api/api_stats');
+      if (this.stats) {
+        this.newConfig.model = this.stats.model || 'gpt-5.4';
+        this.newConfig.max_tokens = this.stats.max_tokens || 1200;
+      }
+      nextTick(() => this.renderApiTrend());
+    },
+    renderApiTrend() {
+      if (!this.stats || !this.stats.daily) return;
+      const el = this.$refs.apiTrendChart; if (!el) return;
+      if (this.charts.apiTrend) this.charts.apiTrend.dispose();
+      this.charts.apiTrend = echarts.init(el);
+      const pad = n => String(n).padStart(2,'0');
+      const dates = [];
+      for (let i=6; i>=0; i--) {
+        const d = new Date(); d.setDate(d.getDate()-i);
+        dates.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+      }
+      const calls = dates.map(d => (this.stats.daily[d] && this.stats.daily[d].calls) || 0);
+      const cost = dates.map(d => Number(((this.stats.daily[d] && this.stats.daily[d].cost) || 0).toFixed(4)));
+      this.charts.apiTrend.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['调用次数','费用($)'], bottom: 0 },
+        grid: { left:'3%', right:'4%', bottom:'15%', top:'12%', containLabel:true },
+        xAxis: { type:'category', boundaryGap: false, data: dates, axisLabel: { rotate:30, interval:'auto' }, axisTick:{alignWithLabel:true} },
+        yAxis: [
+          { type:'value', name:'次数', splitLine:{lineStyle:{type:'dashed'}}, minInterval:1 },
+          { type:'value', name:'费用($)', axisLabel:{formatter: v => v.toFixed(3)}, splitLine:{show:false} }
+        ],
+        series: [
+          { name:'调用次数', type:'line', data: calls, smooth:true, symbol:'circle', symbolSize:8, lineStyle:{color:'#122e8a', width:3}, areaStyle:{color:'rgba(18,46,138,0.08)'}, itemStyle:{color:'#122e8a'}},
+          { name:'费用($)', type:'line', yAxisIndex:1, data: cost, smooth:true, lineStyle:{color:'#d97706', width:3}, symbol:'circle', symbolSize:6, itemStyle:{color:'#d97706'}}
+        ]
+      }, true);
+    },
+    async loadModels() {
+      this.modelList = await this.authFetch('/api/models') || [];
+    },
+    formatCost(v) { return Number(v || 0).toFixed(6); },
+    formatCostShort(v) { return Number(v || 0).toFixed(4); },
+    async saveApiConfig() {
+      this.savingConfig = true;
+      const form = new FormData();
+      form.append('model', this.newConfig.model);
+      form.append('max_tokens', this.newConfig.max_tokens);
+      const r = await this.authFetch('/api/api_config', { method: 'POST', body: form });
+      this.savingConfig = false;
+      if (r && r.ok) { this.loadStats(); }
+    },
+    async checkModel() {
+      this.checking = true;
+      this.checkResult = await this.authFetch('/api/check_model', { method: 'POST' });
+      this.checking = false;
+    },
+    resizeCharts() {
+      Object.values(this.charts).forEach(c => c && c.resize());
+    }
+  },
+  watch: {
+    tab(v) {
+      if (v === 'paper') { this.loadPaper(); }
+      if (v === 'api') { this.loadStats(); this.loadModels(); }
+      if (v === 'bench') { this.renderBenchCharts(); }
+      if (v === 'run') { this.loadSamples(); }
+      nextTick(() => this.resizeCharts());
     }
   }
 }).mount('#app');

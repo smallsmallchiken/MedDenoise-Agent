@@ -53,14 +53,37 @@ def analyze_image(image: np.ndarray, filename: str = "") -> dict:
     structure = structure_analysis(image)
     modality = guess_modality(image, filename)
     if sigma < 5:
-        noise_level = "low"
+        noise_level = "低"
     elif sigma < 20:
-        noise_level = "medium"
+        noise_level = "中等"
     else:
-        noise_level = "high"
+        noise_level = "高"
+
+    edge_density = structure["edge_density"]
+    texture_complexity = structure["texture_complexity"]
+    dynamic_range = structure["dynamic_range"]
+    mean_coherence = structure["mean_coherence"]
+
+    if noise_level == "高" or sigma >= 25:
+        recommendation = "建议采用强滤波或 Agent 调参，先充分抑制噪声再保护细节。"
+    elif edge_density > 0.15 and texture_complexity > 0.02:
+        recommendation = "边缘与纹理丰富，建议提高纹理增强权重，避免过度平滑。"
+    elif edge_density < 0.08:
+        recommendation = "图像整体较平滑，可用标准参数或略强的基础滤波。"
+    else:
+        recommendation = "建议直接使用 VT-BM3D 标准流程，必要时由 Agent 微调。"
+
+    summary = (
+        f"该图像被识别为 {modality} 影像，噪声水平为 {noise_level}（估计 σ={sigma:.2f}）。"
+        f"边缘密度 {edge_density:.3f}，纹理复杂度 {texture_complexity:.4f}，方向一致性 {mean_coherence:.3f}，"
+        f"动态范围 {dynamic_range:.3f}。{recommendation}"
+    )
+
     return {
         "estimated_sigma": round(sigma, 2),
         "noise_level": noise_level,
         "modality": modality,
+        "summary": summary,
+        "recommendation": recommendation,
         **{k: round(v, 4) for k, v in structure.items()},
     }

@@ -35,5 +35,16 @@
     {"removed": "移除 结构感知自适应阈值模块", "bsds300_psnr": 28.34, "bsds300_ssim": 0.820, "set12_psnr": 28.63, "set12_ssim": 0.835},
     {"removed": "移除 边缘保护与纹理增强模块", "bsds300_psnr": 28.09, "bsds300_ssim": 0.805, "set12_psnr": 28.31, "set12_ssim": 0.820},
     {"removed": "移除 噪声建模与自适应变换选择", "bsds300_psnr": 29.59, "bsds300_ssim": 0.850, "set12_psnr": 29.85, "set12_ssim": 0.860}
+  ],
+  "tuned_comparison": [
+    {"source": "brain_slice", "noise_sigma": 25,
+     "untuned": {"psnr": 29.67, "ssim": 0.446, "rmse": 0.0329},
+     "tuned":   {"psnr": 29.97, "ssim": 0.454, "rmse": 0.0317}},
+    {"source": "cell", "noise_sigma": 25,
+     "untuned": {"psnr": 36.84, "ssim": 0.907, "rmse": 0.0144},
+     "tuned":   {"psnr": 37.15, "ssim": 0.912, "rmse": 0.0139}},
+    {"source": "skin", "noise_sigma": 25,
+     "untuned": {"psnr": 24.94, "ssim": 0.659, "rmse": 0.0566},
+     "tuned":   {"psnr": 25.24, "ssim": 0.672, "rmse": 0.0551}}
   ]
 }
