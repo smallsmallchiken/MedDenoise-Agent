@@ -575,7 +575,7 @@
             <span class="sum-good" v-if="compareSummary.dPsnr != null">平均 PSNR 提升：+{{compareSummary.dPsnr}} dB</span>
             <span class="sum-good" v-if="compareSummary.dSsim != null">平均 SSIM 提升：+{{compareSummary.dSsim}}</span>
           </div>
-          <div v-else class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成对比数据。</div>
+          <div v-if="!compareTable.length" class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成对比数据。</div>
         </div>
       </div>
 
