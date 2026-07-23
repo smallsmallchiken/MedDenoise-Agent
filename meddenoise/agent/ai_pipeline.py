@@ -226,7 +226,7 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
         system = TUNE_SYSTEM.format(skill_context=_load_skill_text(),
                                      history_context=_history_context(5))
         reply = llm.llm_chat(system, [{"role": "user", "content": desc}],
-                             max_tokens=1600, purpose="AI分析与调参")
+                             max_tokens=1200, purpose="AI分析与调参")
         if reply:
             analysis_text = (reply.split("{")[0].replace("```json", "")
                              .replace("```", "").strip() or reply)
@@ -250,27 +250,17 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
 
     # ---- 微调 VT-BM3D ----
     yield {"type": "stage", "stage": "微调VT-BM3D"}
-    if use_llm:
-        user_prompt = (
-            f"图像特征: {desc}\n"
-            f"初始方案: {json.dumps(initial_plan, ensure_ascii=False)}\n"
-            f"历史参考: {_history_context(3)}\n"
-            "请参考历史成功案例对参数进行微调, 输出更优JSON方案。"
-        )
-        fine_reply = llm.llm_chat(FINE_TUNE_SYSTEM,
-                                  [{"role": "user", "content": user_prompt}],
-                                  max_tokens=1200, purpose="VT-BM3D微调")
-        fine_plan = llm.extract_json(fine_reply) if fine_reply else None
-        if fine_plan:
-            plan = _sanitize(fine_plan, perception["estimated_sigma"])
-            plan["param_rationale"] = {**(plan.get("param_rationale") or {}),
-                                       "fine_tune": plan.get("fine_tune_reason", "基于历史调参案例微调")}
-        fine_text = _plan_text(plan, "微调后方案")
-        for ev in _emit_stream(fine_text, "微调VT-BM3D"):
-            yield ev
-    else:
-        yield {"type": "thinking", "stage": "微调VT-BM3D",
-               "text": "未连接LLM, 沿用初始方案并做经验性边界裁剪。"}
+    # 为缩短整体处理时间, 省略一次单独的 LLM 微调调用,
+    # 沿用初始方案并做边界与安全裁剪, 仍保留“微调”阶段可视化。
+    plan = _sanitize(plan, perception["estimated_sigma"])
+    plan["param_rationale"] = plan.get("param_rationale") or {}
+    plan["param_rationale"]["fine_tune"] = (
+        "为缩短单次 AI 处理耗时, 在初始方案基础上直接做边界裁剪与参数校验, "
+        "未再单独发起 LLM 微调调用, 仍由首次 LLM 输出完成主要调参决策。"
+    )
+    fine_text = _plan_text(plan, "微调后方案")
+    for ev in _emit_stream(fine_text, "微调VT-BM3D"):
+        yield ev
     yield {"type": "decision", "plan": plan, "llm": use_llm, "tuned": True}
 
     # ---- 执行VT-BM3D ----
@@ -295,33 +285,14 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
     if use_llm:
         prompt = (f"调参方案: {json.dumps(plan, ensure_ascii=False)}\n"
                   f"评估指标: {json.dumps(ev, ensure_ascii=False)}\n"
-                  "请给出详细结果分析, 并判断是否调整重试。")
+                  "请给出简短结果分析(2~4句), 说明去噪效果与参数作用, 无需调整重试。")
         reply = llm.llm_chat(REFLECT_SYSTEM, [{"role": "user", "content": prompt}],
-                             max_tokens=1400, purpose="结果分析与反思")
+                             max_tokens=300, purpose="结果分析与反思")
         verdict = llm.extract_json(reply) if reply else None
         if verdict:
             reflection = verdict.get("analysis") or verdict.get("comment", "")
             for evv in _emit_stream(reflection, "处理结果分析"):
                 yield evv
-            adj = verdict.get("adjustment")
-            if not verdict.get("satisfied", True) and adj:
-                adj = _sanitize(dict(adj), plan["sigma"])
-                adj.setdefault("reason", "AI反思后微调的重试方案")
-                yield {"type": "thinking", "stage": "处理结果分析",
-                       "text": "AI判定质量可进一步提升, 调整参数重试: "
-                               + json.dumps({"sigma": adj["sigma"],
-                                             **adj["params"]}, ensure_ascii=False)
-                               + f" — {adj['reason']}"}
-                output2, denoised2, ev2 = _execute(noisy, reference, adj)
-                history.append({"plan": adj, "evaluation": ev2})
-                if ev2.get("psnr", ev2.get("laplacian_sharpness", 0)) >= \
-                        ev.get("psnr", ev.get("laplacian_sharpness", 0)):
-                    output, denoised, ev, plan = output2, denoised2, ev2, adj
-                    yield {"type": "thinking", "stage": "处理结果分析",
-                           "text": "重试方案效果更优, 采纳新参数。"}
-                else:
-                    yield {"type": "thinking", "stage": "处理结果分析",
-                           "text": "重试未带来提升, 保留初次结果。"}
     if not reflection:
         reflection = (f"PSNR={ev.get('psnr', '-')}dB, SSIM={ev.get('ssim', '-')}, "
                       "达到预期质量。")

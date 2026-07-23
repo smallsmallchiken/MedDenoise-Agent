@@ -857,6 +857,25 @@ createApp({
       return Number(((this.stats.today.cost || 0) / this.stats.total.cost * 100).toFixed(1));
     },
     compareByDataset() {
+      // 优先使用论文数据中的预置配对基线（同一样本，含未调参与 Agent 调参）
+      if (this.paper && this.paper.tuned_comparison && this.paper.tuned_comparison.length) {
+        return this.paper.tuned_comparison.map(r => {
+          const u = r.untuned || {}, t = r.tuned || {};
+          const name = (r.source || '未命名').replace(/^med_/, '');
+          const row = {
+            name,
+            untuned: { psnr: u.psnr, ssim: u.ssim, rmse: u.rmse },
+            tuned: { psnr: t.psnr, ssim: t.ssim, rmse: t.rmse },
+            paired: true,
+            untunedCount: 1,
+            tunedCount: 1
+          };
+          if (u.psnr != null && t.psnr != null) row.dPsnr = Number((t.psnr - u.psnr).toFixed(2));
+          if (u.ssim != null && t.ssim != null) row.dSsim = Number((t.ssim - u.ssim).toFixed(3));
+          if (u.rmse != null && t.rmse != null) row.dRmse = Number((t.rmse - u.rmse).toFixed(4));
+          return row;
+        });
+      }
       if (!this.history.length) return [];
       const groups = {};
       this.history.filter(h => h.evaluation).forEach(h => {
