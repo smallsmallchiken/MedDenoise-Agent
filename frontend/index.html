@@ -291,6 +291,12 @@
     .data-table tr:nth-child(even) { background: var(--panel2); }
     .paper-figures { display: flex; flex-direction: column; gap: 16px; max-width: 720px; margin: 0 auto; }
     .figure-card img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+    .mode-tag { display: inline-block; border-radius: 12px; padding: 3px 9px; font-size: 12px; }
+    .mode-tuned { background: rgba(18,46,138,0.12); color: var(--primary); }
+    .mode-untuned { background: #e5e7eb; color: #4b5563; }
+    .tuned-row { background: rgba(18,46,138,0.04); }
+    .compare-summary { margin-top: 12px; padding: 10px 14px; background: var(--panel2); border-radius: 8px; font-size: 13px; display: flex; gap: 18px; flex-wrap: wrap; }
+    .sum-good { color: #047857; font-weight: 600; }
 
     /* 算法评测 */
     .innovation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
@@ -537,8 +543,38 @@
         </div>
 
         <div class="card">
-          <h3>Agent 调参 vs 未调参</h3>
-          <div ref="compareChart" style="height:420px" v-if="compareData.length"></div>
+          <h3>Agent 调参 vs 未调参 — 样本指标明细</h3>
+          <table class="data-table" v-if="compareTable.length">
+            <thead>
+              <tr>
+                <th style="text-align:left">样本</th>
+                <th>调参方式</th>
+                <th>PSNR/dB</th>
+                <th>SSIM</th>
+                <th>RMSE</th>
+                <th>清晰度</th>
+                <th>梯度能量</th>
+                <th>熵</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in compareTable" :key="row.name + row.mode" :class="row.mode === 'Agent 调参' ? 'tuned-row' : 'untuned-row'">
+                <td style="text-align:left;font-weight:500">{{row.name}}</td>
+                <td><span class="mode-tag" :class="row.mode === 'Agent 调参' ? 'mode-tuned' : 'mode-untuned'">{{row.mode}}</span></td>
+                <td>{{fmt(row.psnr)}}</td>
+                <td>{{fmt(row.ssim)}}</td>
+                <td>{{fmt(row.rmse)}}</td>
+                <td>{{fmt(row.laplacian)}}</td>
+                <td>{{fmt(row.gradient)}}</td>
+                <td>{{fmt(row.entropy)}}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="compareSummary.count" class="compare-summary">
+            <span>已配对样本数：{{compareSummary.count}}</span>
+            <span class="sum-good" v-if="compareSummary.dPsnr != null">平均 PSNR 提升：+{{compareSummary.dPsnr}} dB</span>
+            <span class="sum-good" v-if="compareSummary.dSsim != null">平均 SSIM 提升：+{{compareSummary.dSsim}}</span>
+          </div>
           <div v-else class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成对比数据。</div>
         </div>
       </div>
@@ -639,10 +675,6 @@
           <div v-if="!recent5.length" class="muted">暂无调用记录</div>
         </div>
 
-        <div class="card">
-          <h3>每日调用趋势</h3>
-          <div ref="apiChart" style="height:300px"></div>
-        </div>
       </div>
     </div>
   </template>
@@ -721,30 +753,48 @@ createApp({
         caption: `${it.image} (${it.noise}, σ=${it.sigma}) — BM3D PSNR ${it.bm3d_psnr} dB, VT-BM3D PSNR ${it.vtbm3d_psnr} dB`
       }));
     },
-    compareData() {
+    compareTable() {
       if (!this.history.length) return [];
-      const map = {};
+      const rows = [];
+      const groups = {};
       this.history.filter(h => h.evaluation).forEach(h => {
+        const e = h.evaluation;
         const name = ((h.source || '未命名')).replace(/^med_/, '');
-        const bucket = h.llm ? 'tuned' : 'untuned';
-        if (!map[name]) map[name] = { name, tuned: [], untuned: [] };
-        const psnr = h.evaluation.psnr != null ? Number(h.evaluation.psnr) : null;
-        const ssim = h.evaluation.ssim != null ? Number(h.evaluation.ssim) : null;
-        if (psnr != null || ssim != null) map[name][bucket].push({ psnr, ssim });
-      });
-      return Object.values(map).filter(p => p.tuned.length || p.untuned.length).map(p => {
-        const avg = (arr, key) => {
-          const vs = arr.filter(x => x[key] != null).map(x => x[key]);
-          return vs.length ? (vs.reduce((a, b) => a + b, 0) / vs.length) : null;
+        const mode = h.llm ? 'Agent 调参' : '未调参';
+        const row = {
+          name,
+          mode,
+          psnr: e.psnr != null ? Number(e.psnr.toFixed(2)) : null,
+          ssim: e.ssim != null ? Number(e.ssim.toFixed(3)) : null,
+          rmse: e.rmse != null ? Number(e.rmse.toFixed(4)) : null,
+          laplacian: e.laplacian_sharpness != null ? Number(e.laplacian_sharpness.toFixed(2)) : null,
+          gradient: e.gradient_energy != null ? Number(e.gradient_energy.toFixed(2)) : null,
+          entropy: e.entropy != null ? Number(e.entropy.toFixed(3)) : null
         };
-        return {
-          name: p.name,
-          untunedPsnr: avg(p.untuned, 'psnr'),
-          untunedSsim: avg(p.untuned, 'ssim'),
-          tunedPsnr: avg(p.tuned, 'psnr'),
-          tunedSsim: avg(p.tuned, 'ssim')
-        };
+        if (!groups[name]) groups[name] = [];
+        groups[name].push(row);
       });
+      Object.keys(groups).sort().forEach(name => {
+        groups[name].sort((a, b) => a.mode === '未调参' ? -1 : 1);
+        rows.push(...groups[name]);
+      });
+      return rows;
+    },
+    compareSummary() {
+      const groups = {};
+      this.compareTable.forEach(row => { if (!groups[row.name]) groups[row.name] = {}; groups[row.name][row.mode] = row; });
+      const dps = [], dss = [];
+      Object.values(groups).forEach(g => {
+        if (g['未调参'] && g['Agent 调参']) {
+          if (g['未调参'].psnr != null && g['Agent 调参'].psnr != null) dps.push(g['Agent 调参'].psnr - g['未调参'].psnr);
+          if (g['未调参'].ssim != null && g['Agent 调参'].ssim != null) dss.push(g['Agent 调参'].ssim - g['未调参'].ssim);
+        }
+      });
+      return {
+        count: dps.length || dss.length,
+        dPsnr: dps.length ? Number((dps.reduce((a,b)=>a+b,0)/dps.length).toFixed(2)) : null,
+        dSsim: dss.length ? Number((dss.reduce((a,b)=>a+b,0)/dss.length).toFixed(3)) : null
+      };
     },
     recent5() { return this.stats && this.stats.recent ? this.stats.recent.slice(0,5) : []; }
   },
@@ -768,6 +818,7 @@ createApp({
     window.addEventListener('resize', this.resizeCharts);
   },
   methods: {
+    fmt(v) { return v != null ? v : '-'; },
     // auth
     async login() {
       this.loading = true; this.toast = '';
@@ -859,7 +910,6 @@ createApp({
     async loadHistory() {
       const r = await this.authFetch('/api/history');
       this.history = Array.isArray(r) ? r : [];
-      nextTick(() => { this.renderCompareChart(); });
     },
     stageState(idx) {
       const name = this.stageNames[idx];
@@ -994,35 +1044,6 @@ createApp({
         yAxis: { type: 'value', name: 'PSNR (dB)' },
         series: series
       });
-      nextTick(() => this.renderCompareChart());
-    },
-    renderCompareChart() {
-      const el = this.$refs.compareChart;
-      if (!el || !this.compareData.length) return;
-      if (this.charts.compare) this.charts.compare.dispose();
-      this.charts.compare = echarts.init(el);
-      const names = this.compareData.map(p => p.name);
-      const up = this.compareData.map(p => p.untunedPsnr != null ? Number(p.untunedPsnr.toFixed(2)) : null);
-      const tp = this.compareData.map(p => p.tunedPsnr != null ? Number(p.tunedPsnr.toFixed(2)) : null);
-      const us = this.compareData.map(p => p.untunedSsim != null ? Number(p.untunedSsim.toFixed(3)) : null);
-      const ts = this.compareData.map(p => p.tunedSsim != null ? Number(p.tunedSsim.toFixed(3)) : null);
-      this.charts.compare.setOption({
-        title: { text: '各样本 PSNR / SSIM 对比：柱状=PSNR，折线=SSIM', left: 'center', top: 6, textStyle: { fontSize: 15, color: 'var(--primary)', fontWeight: 700 } },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-        legend: { top: 36, data: ['未调参 PSNR', 'Agent调参 PSNR', '未调参 SSIM', 'Agent调参 SSIM'] },
-        grid: { left: '3%', right: '3%', bottom: '18%', top: '22%', containLabel: true },
-        xAxis: { type: 'category', data: names, axisLabel: { rotate: 30, interval: 0, color: 'var(--muted)' }, axisLine: { lineStyle: { color: 'var(--line)' } } },
-        yAxis: [
-          { type: 'value', name: 'PSNR (dB)', position: 'left', splitLine: { lineStyle: { color: 'var(--line)' } }, axisLine: { lineStyle: { color: 'var(--muted)' } } },
-          { type: 'value', name: 'SSIM', position: 'right', min: 0, max: 1, splitLine: { show: false }, axisLine: { lineStyle: { color: 'var(--muted)' } } }
-        ],
-        series: [
-          { name: '未调参 PSNR', type: 'bar', data: up, barMaxWidth: 22, itemStyle: { color: '#9ca3af', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', fontSize: 11, color:'#9ca3af', formatter: p => p.value != null ? p.value : '' } },
-          { name: 'Agent调参 PSNR', type: 'bar', data: tp, barMaxWidth: 22, itemStyle: { color: '#122e8a', borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', fontSize: 11, color:'#122e8a', formatter: p => p.value != null ? p.value : '' }, markLine: { lineStyle: { color: '#122e8a', type: 'dashed' }, data: [{ type: 'average', name: '平均' }] } },
-          { name: '未调参 SSIM', type: 'line', yAxisIndex: 1, data: us, smooth: true, symbol: 'circle', symbolSize: 5, itemStyle: { color: '#c4c9cf' }, lineStyle: { width: 2, type: 'dashed' } },
-          { name: 'Agent调参 SSIM', type: 'line', yAxisIndex: 1, data: ts, smooth: true, symbol: 'circle', symbolSize: 5, itemStyle: { color: '#d97706' }, lineStyle: { width: 2 }, markLine: { lineStyle: { color: '#d97706', type: 'dashed' }, data: [{ type: 'average', name: '平均' }] } }
-        ]
-      });
     },
 
     // bench
@@ -1049,7 +1070,6 @@ createApp({
         this.newConfig.model = this.stats.model || 'gpt-5.4';
         this.newConfig.max_tokens = this.stats.max_tokens || 1200;
       }
-      nextTick(() => this.renderApiChart());
     },
     async loadModels() {
       this.modelList = await this.authFetch('/api/models') || [];
@@ -1068,39 +1088,6 @@ createApp({
       this.checking = true;
       this.checkResult = await this.authFetch('/api/check_model', { method: 'POST' });
       this.checking = false;
-    },
-    renderApiChart() {
-      if (!this.stats || !this.stats.daily) return;
-      const el = this.$refs.apiChart; if (!el) return;
-      if (this.charts.api) this.charts.api.dispose();
-      this.charts.api = echarts.init(el);
-      const keys = Object.keys(this.stats.daily).sort().slice(-30);
-      const labels = keys.map(k => k.slice(5));
-      const calls = keys.map(k => this.stats.daily[k].calls);
-      const costs = keys.map(k => this.stats.daily[k].cost);
-      this.charts.api.setOption({
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-        legend: { top: 8, data: ['调用次数', '费用 ($)'] },
-        grid: { left: '3%', right: '3%', bottom: '18%', top: '20%', containLabel: true },
-        xAxis: { type: 'category', data: labels, boundaryGap: true, axisLine: { lineStyle: { color: 'var(--muted)' } }, axisLabel: { color: 'var(--muted)', rotate: 35, interval: 0 } },
-        yAxis: [
-          { type: 'value', name: '调用次数', position: 'left', splitLine: { lineStyle: { color: 'var(--line)' } }, axisLine: { lineStyle: { color: 'var(--muted)' } } },
-          { type: 'value', name: '费用 ($)', position: 'right', splitLine: { show: false }, axisLine: { lineStyle: { color: 'var(--muted)' } } }
-        ],
-        series: [
-          {
-            name: '调用次数', type: 'bar', data: calls,
-            barMaxWidth: 26, barCategoryGap: '40%',
-            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#122e8a' }, { offset: 1, color: '#3b5ac0' }] }, borderRadius: [4, 4, 0, 0] },
-            label: { show: true, position: 'top', color: '#122e8a', fontSize: 11, formatter: '{c} 次' }
-          },
-          {
-            name: '费用 ($)', type: 'line', yAxisIndex: 1, smooth: true, symbol: 'circle', symbolSize: 5, data: costs,
-            lineStyle: { color: '#d97706', width: 2 }, itemStyle: { color: '#d97706' },
-            label: { show: true, position: 'top', color: '#d97706', fontSize: 11, formatter: '${c}' }
-          }
-        ]
-      });
     },
     resizeCharts() {
       Object.values(this.charts).forEach(c => c && c.resize());
