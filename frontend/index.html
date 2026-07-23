@@ -291,12 +291,13 @@
     .data-table tr:nth-child(even) { background: var(--panel2); }
     .paper-figures { display: flex; flex-direction: column; gap: 16px; max-width: 720px; margin: 0 auto; }
     .figure-card img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
-    .mode-tag { display: inline-block; border-radius: 12px; padding: 3px 9px; font-size: 12px; }
-    .mode-tuned { background: rgba(18,46,138,0.12); color: var(--primary); }
-    .mode-untuned { background: #e5e7eb; color: #4b5563; }
-    .tuned-row { background: rgba(18,46,138,0.04); }
-    .data-table tbody tr.tuned-row { background: rgba(18,46,138,0.06); }
-    .compare-summary { margin-top: 12px; padding: 10px 14px; background: var(--panel2); border-radius: 8px; font-size: 13px; display: flex; gap: 18px; flex-wrap: wrap; }
+    .count-tag { font-size: 11px; color: var(--muted); margin-left: 3px; }
+    .delta-good { color: #047857; font-weight: 600; }
+    .delta-bad { color: #b91c1c; font-weight: 600; }
+    .unpaired-row { opacity: 0.65; }
+    .compare-summary { margin-top: 12px; padding: 10px 14px; background: var(--panel2); border-radius: 8px; font-size: 13px; display: flex; gap: 0; flex-wrap: wrap; }
+    .compare-summary > span { padding: 0 14px; }
+    .compare-summary > span:not(:first-child) { border-left: 1px solid var(--line); }
     .sum-good { color: #047857; font-weight: 600; }
 
     /* 算法评测 */
@@ -544,39 +545,44 @@
         </div>
 
         <div class="card">
-          <h3>Agent 调参 vs 未调参 — 样本指标明细</h3>
-          <table class="data-table" v-if="compareTable.length">
+          <h3>Agent 调参 vs 未调参 — 同一样本平均值对比</h3>
+          <table class="data-table" v-if="compareByDataset.length">
             <thead>
               <tr>
-                <th style="text-align:left">样本</th>
-                <th>调参方式</th>
-                <th>PSNR/dB</th>
-                <th>SSIM</th>
-                <th>RMSE</th>
-                <th>清晰度</th>
-                <th>梯度能量</th>
-                <th>熵</th>
+                <th>样本</th>
+                <th>未调参 PSNR/dB</th>
+                <th>Agent 调参 PSNR/dB</th>
+                <th>ΔPSNR</th>
+                <th>未调参 SSIM</th>
+                <th>Agent 调参 SSIM</th>
+                <th>ΔSSIM</th>
+                <th>未调参 RMSE</th>
+                <th>Agent 调参 RMSE</th>
+                <th>ΔRMSE</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in compareTable" :key="row.name + row.mode" :class="row.mode === 'Agent 调参' ? 'tuned-row' : 'untuned-row'">
+              <tr v-for="row in compareByDataset" :key="row.name" :class="row.paired ? '' : 'unpaired-row'">
                 <td style="text-align:left;font-weight:500">{{row.name}}</td>
-                <td><span class="mode-tag" :class="row.mode === 'Agent 调参' ? 'mode-tuned' : 'mode-untuned'">{{row.mode}}</span></td>
-                <td>{{fmt(row.psnr)}}</td>
-                <td>{{fmt(row.ssim)}}</td>
-                <td>{{fmt(row.rmse)}}</td>
-                <td>{{fmt(row.laplacian)}}</td>
-                <td>{{fmt(row.gradient)}}</td>
-                <td>{{fmt(row.entropy)}}</td>
+                <td>{{fmt(row.untuned.psnr)}}<span class="count-tag" v-if="row.untunedCount>1"> ({{row.untunedCount}})</span></td>
+                <td>{{fmt(row.tuned.psnr)}}<span class="count-tag" v-if="row.tunedCount>1"> ({{row.tunedCount}})</span></td>
+                <td :class="row.dPsnr != null ? (row.dPsnr >= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dPsnr)}}</td>
+                <td>{{fmt(row.untuned.ssim)}}</td>
+                <td>{{fmt(row.tuned.ssim)}}</td>
+                <td :class="row.dSsim != null ? (row.dSsim >= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dSsim)}}</td>
+                <td>{{fmt(row.untuned.rmse)}}</td>
+                <td>{{fmt(row.tuned.rmse)}}</td>
+                <td :class="row.dRmse != null ? (row.dRmse <= 0 ? 'delta-good' : 'delta-bad') : ''">{{fmt(row.dRmse)}}</td>
               </tr>
             </tbody>
           </table>
           <div v-if="compareSummary.count" class="compare-summary">
             <span>已配对样本数：{{compareSummary.count}}</span>
-            <span class="sum-good" v-if="compareSummary.dPsnr != null">平均 PSNR 提升：+{{compareSummary.dPsnr}} dB</span>
-            <span class="sum-good" v-if="compareSummary.dSsim != null">平均 SSIM 提升：+{{compareSummary.dSsim}}</span>
+            <span class="sum-good" v-if="compareSummary.dPsnr != null">平均 ΔPSNR：{{compareSummary.dPsnr >= 0 ? '+' : ''}}{{compareSummary.dPsnr}} dB</span>
+            <span class="sum-good" v-if="compareSummary.dSsim != null">平均 ΔSSIM：{{compareSummary.dSsim >= 0 ? '+' : ''}}{{compareSummary.dSsim}}</span>
+            <span class="sum-good" v-if="compareSummary.dRmse != null">平均 ΔRMSE：{{compareSummary.dRmse}}</span>
           </div>
-          <div v-if="!compareTable.length" class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成对比数据。</div>
+          <div v-if="!compareByDataset.length" class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成配对对比数据。</div>
         </div>
       </div>
 
@@ -631,38 +637,59 @@
 
       <!-- API监控 -->
       <div v-if="tab==='api'">
-        <div class="card" style="margin-bottom:16px">
-          <h3>API 连接状态</h3>
-          <div class="control-inline">
-            <span :style="{color: apiConfigured ? 'var(--success)' : 'var(--danger)', fontWeight:700}">{{ apiConfigured ? '已配置' : '未配置' }}</span>
-            <span class="muted">当前模型: {{ stats && stats.model || '-' }}</span>
-            <span class="muted">Base URL: {{ stats && stats.base_url || '-' }}</span>
-            <span class="muted">单次 token 上限: {{ stats && stats.max_tokens || '-' }}</span>
-            <button class="btn-ghost" @click="checkModel" :disabled="checking">{{ checking ? '检测中...' : '检测连通性' }}</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
+          <h2 style="margin:0; font-size:18px; color:var(--primary)">API 使用监控</h2>
+          <div style="display:flex; gap:10px; align-items:center">
+            <span class="muted" style="font-size:12px">模型: {{stats && stats.model || '-'}} · 状态: <span :style="{color: apiConfigured ? 'var(--success)' : 'var(--danger)', fontWeight:700}">{{ apiConfigured ? '已配置' : '未配置' }}</span></span>
+            <button class="btn-ghost" @click="loadStats" style="font-size:12px; padding:6px 12px">刷新</button>
           </div>
-          <div v-if="checkResult" class="muted" style="margin-top:8px">{{ checkResult.reachable ? '连通' : '未连通' }} — {{ checkResult.detail }} ({{checkResult.latency_s || 0}}s)</div>
         </div>
 
         <div class="stats-grid" v-if="stats">
-          <div class="card stat-card"><div class="num">{{stats.today.calls}}</div><div class="label">今日调用次数</div></div>
-          <div class="card stat-card"><div class="num">{{formatCost(stats.today.cost)}}</div><div class="label">今日费用 ($)</div></div>
-          <div class="card stat-card"><div class="num">{{stats.week.calls}}</div><div class="label">近一周调用次数</div></div>
-          <div class="card stat-card"><div class="num">{{formatCost(stats.week.cost)}}</div><div class="label">近一周费用 ($)</div></div>
-          <div class="card stat-card"><div class="num">{{stats.month.calls}}</div><div class="label">近一月调用次数</div></div>
-          <div class="card stat-card"><div class="num">{{formatCost(stats.month.cost)}}</div><div class="label">近一月费用 ($)</div></div>
+          <div class="card stat-card">
+            <div class="num">{{todayTokens}}</div>
+            <div class="label">今日 Token 消耗</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">{{stats.today.calls}} 次调用</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{formatCostShort(stats.today.cost)}}</div>
+            <div class="label">今日费用 ($)</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">累计占比 {{todayCostPct}}%</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{stats.week.calls}}</div>
+            <div class="label">近 7 天调用</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">{{weekTokens}} tokens</div>
+          </div>
+          <div class="card stat-card">
+            <div class="num">{{avgLatency}}</div>
+            <div class="label">平均响应</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px">近 5 次</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px" v-if="stats">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+            <h3 style="margin:0">调用趋势</h3>
+            <span class="muted" style="font-size:12px">最近 {{Object.keys(stats.daily||{}).length}} 天</span>
+          </div>
+          <div ref="apiTrendChart" style="height:300px"></div>
         </div>
 
         <div class="card" style="margin-bottom:16px">
-          <h3>API 控制</h3>
+          <h3>模型配置与限额</h3>
           <div class="control-inline">
+            <span class="muted">当前模型: {{stats.model}} @ {{stats.base_url}}</span>
             <label>选择模型</label>
             <select v-model="newConfig.model">
               <option v-for="m in modelList" :key="m.id" :value="m.id">{{m.name}}</option>
             </select>
-            <label>单次调用最大 token</label>
+            <label>单次最大 token</label>
             <input type="number" min="200" max="8000" v-model.number="newConfig.max_tokens">
             <button class="btn" @click="saveApiConfig" :disabled="savingConfig">保存</button>
+            <button class="btn-ghost" @click="checkModel" :disabled="checking">{{ checking ? '检测中...' : '检测连通性' }}</button>
           </div>
+          <div v-if="checkResult" class="muted" style="margin-top:8px">{{ checkResult.reachable ? '连通' : '未连通' }} — {{ checkResult.detail }} ({{checkResult.latency_s || 0}}s)</div>
         </div>
 
         <div class="card" style="margin-bottom:16px">
@@ -675,7 +702,6 @@
           </table>
           <div v-if="!recent5.length" class="muted">暂无调用记录</div>
         </div>
-
       </div>
     </div>
   </template>
@@ -754,47 +780,73 @@ createApp({
         caption: `${it.image} (${it.noise}, σ=${it.sigma}) — BM3D PSNR ${it.bm3d_psnr} dB, VT-BM3D PSNR ${it.vtbm3d_psnr} dB`
       }));
     },
-    compareTable() {
+    todayTokens() {
+      if (!this.stats || !this.stats.today) return '-';
+      const t = (this.stats.today.input_tokens || 0) + (this.stats.today.output_tokens || 0);
+      return t.toLocaleString();
+    },
+    weekTokens() {
+      if (!this.stats || !this.stats.week) return '-';
+      const t = (this.stats.week.input_tokens || 0) + (this.stats.week.output_tokens || 0);
+      return t.toLocaleString();
+    },
+    avgLatency() {
+      if (!this.stats || !this.stats.recent) return '-';
+      const lat = this.stats.recent.slice(0, 5).map(r => r.latency_s || 0).filter(v => v > 0);
+      if (!lat.length) return '-';
+      return (lat.reduce((a, b) => a + b, 0) / lat.length).toFixed(1) + 's';
+    },
+    todayCostPct() {
+      if (!this.stats || !this.stats.total || !this.stats.total.cost) return '0.0';
+      return Number(((this.stats.today.cost || 0) / this.stats.total.cost * 100).toFixed(1));
+    },
+    compareByDataset() {
       if (!this.history.length) return [];
-      const rows = [];
       const groups = {};
       this.history.filter(h => h.evaluation).forEach(h => {
         const e = h.evaluation;
         const name = ((h.source || '未命名')).replace(/^med_/, '');
-        const mode = h.llm ? 'Agent 调参' : '未调参';
-        const row = {
-          name,
-          mode,
-          psnr: e.psnr != null ? Number(e.psnr.toFixed(2)) : null,
-          ssim: e.ssim != null ? Number(e.ssim.toFixed(3)) : null,
-          rmse: e.rmse != null ? Number(e.rmse.toFixed(4)) : null,
-          laplacian: e.laplacian_sharpness != null ? Number(e.laplacian_sharpness.toFixed(2)) : null,
-          gradient: e.gradient_energy != null ? Number(e.gradient_energy.toFixed(2)) : null,
-          entropy: e.entropy != null ? Number(e.entropy.toFixed(3)) : null
-        };
-        if (!groups[name]) groups[name] = [];
-        groups[name].push(row);
+        if (!groups[name]) groups[name] = { name, untuned: [], tuned: [] };
+        groups[name][h.llm ? 'tuned' : 'untuned'].push(e);
       });
+      const avg = (arr, key, digits) => {
+        const vs = arr.map(e => e[key]).filter(v => v != null);
+        if (!vs.length) return null;
+        return Number((vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(digits));
+      };
+      const rows = [];
       Object.keys(groups).sort().forEach(name => {
-        groups[name].sort((a, b) => a.mode === '未调参' ? -1 : 1);
-        rows.push(...groups[name]);
+        const g = groups[name];
+        const u = {
+          psnr: avg(g.untuned, 'psnr', 2),
+          ssim: avg(g.untuned, 'ssim', 3),
+          rmse: avg(g.untuned, 'rmse', 4)
+        };
+        const t = {
+          psnr: avg(g.tuned, 'psnr', 2),
+          ssim: avg(g.tuned, 'ssim', 3),
+          rmse: avg(g.tuned, 'rmse', 4)
+        };
+        const row = { name, untuned: u, tuned: t, paired: g.untuned.length && g.tuned.length, untunedCount: g.untuned.length, tunedCount: g.tuned.length };
+        if (row.paired) {
+          if (u.psnr != null && t.psnr != null) row.dPsnr = Number((t.psnr - u.psnr).toFixed(2));
+          if (u.ssim != null && t.ssim != null) row.dSsim = Number((t.ssim - u.ssim).toFixed(3));
+          if (u.rmse != null && t.rmse != null) row.dRmse = Number((t.rmse - u.rmse).toFixed(4));
+        }
+        rows.push(row);
       });
       return rows;
     },
     compareSummary() {
-      const groups = {};
-      this.compareTable.forEach(row => { if (!groups[row.name]) groups[row.name] = {}; groups[row.name][row.mode] = row; });
-      const dps = [], dss = [];
-      Object.values(groups).forEach(g => {
-        if (g['未调参'] && g['Agent 调参']) {
-          if (g['未调参'].psnr != null && g['Agent 调参'].psnr != null) dps.push(g['Agent 调参'].psnr - g['未调参'].psnr);
-          if (g['未调参'].ssim != null && g['Agent 调参'].ssim != null) dss.push(g['Agent 调参'].ssim - g['未调参'].ssim);
-        }
-      });
+      const paired = this.compareByDataset.filter(r => r.paired);
+      const dps = paired.map(r => r.dPsnr).filter(v => v != null);
+      const dss = paired.map(r => r.dSsim).filter(v => v != null);
+      const dr = paired.map(r => r.dRmse).filter(v => v != null);
       return {
-        count: dps.length || dss.length,
-        dPsnr: dps.length ? Number((dps.reduce((a,b)=>a+b,0)/dps.length).toFixed(2)) : null,
-        dSsim: dss.length ? Number((dss.reduce((a,b)=>a+b,0)/dss.length).toFixed(3)) : null
+        count: paired.length,
+        dPsnr: dps.length ? Number((dps.reduce((a, b) => a + b, 0) / dps.length).toFixed(2)) : null,
+        dSsim: dss.length ? Number((dss.reduce((a, b) => a + b, 0) / dss.length).toFixed(3)) : null,
+        dRmse: dr.length ? Number((dr.reduce((a, b) => a + b, 0) / dr.length).toFixed(4)) : null
       };
     },
     recent5() { return this.stats && this.stats.recent ? this.stats.recent.slice(0,5) : []; }
@@ -1071,11 +1123,36 @@ createApp({
         this.newConfig.model = this.stats.model || 'gpt-5.4';
         this.newConfig.max_tokens = this.stats.max_tokens || 1200;
       }
+      nextTick(() => this.renderApiTrend());
+    },
+    renderApiTrend() {
+      if (!this.stats || !this.stats.daily) return;
+      const el = this.$refs.apiTrendChart; if (!el) return;
+      if (this.charts.apiTrend) this.charts.apiTrend.dispose();
+      this.charts.apiTrend = echarts.init(el);
+      const dates = Object.keys(this.stats.daily).sort();
+      const calls = dates.map(d => this.stats.daily[d].calls || 0);
+      const cost = dates.map(d => Number((this.stats.daily[d].cost || 0).toFixed(4)));
+      this.charts.apiTrend.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['调用次数','费用($)'], bottom: 0 },
+        grid: { left:'3%', right:'4%', bottom:'15%', top:'12%', containLabel:true },
+        xAxis: { type:'category', data: dates, axisLabel: { rotate:45, interval:0 }, axisTick:{alignWithLabel:true} },
+        yAxis: [
+          { type:'value', name:'次数', splitLine:{lineStyle:{type:'dashed'}} },
+          { type:'value', name:'费用($)', axisLabel:{formatter: v => v.toFixed(3)} }
+        ],
+        series: [
+          { name:'调用次数', type:'bar', data: calls, itemStyle:{color:'#122e8a', borderRadius:[4,4,0,0]}, barMaxWidth:30 },
+          { name:'费用($)', type:'line', yAxisIndex:1, data: cost, smooth:true, lineStyle:{color:'#d97706', width:3}, symbol:'circle', symbolSize:6 }
+        ]
+      }, true);
     },
     async loadModels() {
       this.modelList = await this.authFetch('/api/models') || [];
     },
     formatCost(v) { return Number(v || 0).toFixed(6); },
+    formatCostShort(v) { return Number(v || 0).toFixed(4); },
     async saveApiConfig() {
       this.savingConfig = true;
       const form = new FormData();
