@@ -446,7 +446,7 @@
             <div class="images-row" style="margin-top:14px">
               <div class="img-card" v-if="result.input_image"><img :src="result.input_image"><div class="label">含噪输入</div></div>
               <div class="img-card" v-if="result.reference_image"><img :src="result.reference_image"><div class="label">原始参考</div></div>
-              <div class="img-card" v-if="result.output_image"><img :src="result.output_image"><div class="label">VT-BM3D 去噪结果 (Agent调参)</div></div>
+              <div class="img-card" v-if="result.output_image"><img :src="result.output_image"><div class="label">VT-BM3D 去噪结果 ({{result.mode || 'Agent调参'}})</div></div>
             </div>
           </div>
         </div>
@@ -900,7 +900,7 @@ createApp({
             if (ev.type === 'thinking') { this.currentThinking = ev.text; this.stageStatus[ev.stage] = 'active'; }
             if (ev.type === 'decision') { this.currentThinking = ''; }
             if (ev.type === 'perception') { this.perception = ev.perception; nextTick(() => this.renderRadar()); }
-            if (ev.type === 'result') { this.result = ev; this.currentThinking = ''; this.stageStatus[ev.stage || '处理结果分析'] = 'done'; this.loadHistory(); }
+            if (ev.type === 'result') { this.result = { ...ev, mode: 'Agent调参' }; this.currentThinking = ''; this.stageStatus[ev.stage || '处理结果分析'] = 'done'; this.loadHistory(); }
             // mark previous stages done
             let seen = false;
             for (const s of this.stageNames) {
@@ -921,7 +921,7 @@ createApp({
       form.append('sigma', this.sigma);
       const r = await this.authFetch('/api/process', { method: 'POST', body: form });
       this.running = false;
-      this.result = { input_image: r.input_image, output_image: r.output_image, reference_image: r.reference_image, evaluation: r.evaluation };
+      this.result = { input_image: r.input_image, output_image: r.output_image, reference_image: r.reference_image, evaluation: r.evaluation, mode: '标准处理' };
       this.perception = r.perception;
       nextTick(() => this.renderRadar());
     },
