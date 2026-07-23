@@ -8,3 +8,5 @@ data/datasets/BSDS300/
 weights/*.pth
 data/api_usage.json
 data/results_history.json
+data/users.json
+data/tokens.json

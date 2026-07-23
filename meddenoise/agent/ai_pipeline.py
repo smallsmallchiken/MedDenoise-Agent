@@ -1,7 +1,7 @@
-"""AI智能调参流水线: 输入图像 → AI分析意见与处理思路 → 详细调参方案
-→ 执行论文VT-BM3D算法 → 处理结果分析, 并将结果存档供对话Agent参考.
+"""AI智能调参流水线: 输入影像 → AI分析意见与处理思路 → 初始调参方案
+→ 微调 VT-BM3D → 执行VT-BM3D → 处理结果分析, 并持久化history供后续微调.
 
-以生成器方式逐步产出事件, 供前端实时展示AI的"思考过程":
+以生成器方式逐步产出事件:
   {"type": "stage",    "stage": 阶段名}
   {"type": "thinking", "stage": 阶段名, "text": AI思考内容}
   {"type": "decision", "plan": 调参方案}
@@ -21,29 +21,47 @@ from ..tools import analysis, denoise, enhance, metrics
 from . import llm
 
 HISTORY_FILE = Path(__file__).resolve().parents[2] / "data" / "results_history.json"
+SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "denoise-strategy"
+
+def _load_skill_text() -> str:
+    f = SKILL_DIR / "SKILL.md"
+    if f.exists():
+        return f.read_text(encoding="utf-8").strip()[:2500]
+    return ""
 
 TUNE_SYSTEM = (
     "你是医学影像去噪专家Agent, 精通论文《VT-BM3D: A collaborative filtering "
     "framework with joint optimization of structure awareness and noise "
-    "adaptivity》(Signal Processing 243 (2026) 110417)。"
-    "本系统只使用论文的VT-BM3D算法: 以结构显著性图 S=α·局部方差归一图 + "
-    "β·结构张量相干性 指导强BM3D(σ×1.15)与弱BM3D(σ/texture_boost)逐像素融合, "
-    "平坦区强去噪、边缘/纹理区弱去噪以保护细节。可调参数与范围: "
-    "alpha(0.2~0.6, 局部方差权重, 细碎纹理多则调大), "
-    "beta_tensor(0.4~0.8, 结构张量相干性权重, 线状边缘/方向性结构强则调大), "
-    "texture_boost(1.1~2.0, 纹理区弱去噪倍率, 纹理越丰富越大以防抹除细节), "
-    "sigma(去噪强度, 通常取估计噪声σ, 可±15%微调)。\n"
+    "adaptivity》。本系统只使用论文提出的VT-BM3D算法: 以结构显著性图 "
+    "S = α·归一化局部方差 + β·归一化结构张量最大特征值 指导强BM3D(σ×1.15) "
+    "与弱BM3D(σ/texture_boost)按显著性逐像素融合, 平坦区强去噪、边缘/纹理区弱去噪以保护细节。\n"
+    "可调参数与物理含义(必须在此范围内):\n"
+    "- sigma: 去噪强度, 通常取估计噪声σ, 可±15%微调。\n"
+    "- alpha(0.2~0.6): 局部方差权重, 细碎纹理/颗粒多则调大。\n"
+    "- beta_tensor(0.4~0.8): 结构张量边缘权重, 方向性结构/线状边缘多则调大。\n"
+    "- texture_boost(1.1~2.0): 纹理区弱去噪的衰减倍率, 纹理越丰富越大, 防止过平滑。\n\n"
+    "论文与技能知识参考(用于微调与决策):\n{skill_context}\n\n"
     "请分两部分输出:\n"
     "第一部分【分析意见与处理思路】: 用6~9句中文详细阐述——(1)图像内容与结构特点判断; "
-    "(2)噪声水平与来源分析; (3)平坦区/边缘/纹理区的分布判断; (4)VT-BM3D处理该图的思路 "
-    "(结构显著性图会如何划分强/弱去噪区域); (5)潜在风险(过平滑/伪影/细节丢失)。\n"
+    "(2)噪声水平与来源分析; (3)平坦区/边缘/纹理区的分布判断; "
+    "(4)VT-BM3D处理该图的结构显著性图会如何划分强/弱去噪区域; "
+    "(5)潜在风险(过平滑/伪影/细节丢失)。\n"
     "第二部分输出JSON调参方案(每个参数都要给出理由):\n"
-    '{"sigma": 数值, "params": {"alpha": 数值, "beta_tensor": 数值, '
-    '"texture_boost": 数值}, '
-    '"param_rationale": {"sigma": "理由", "alpha": "理由", '
-    '"beta_tensor": "理由", "texture_boost": "理由"}, '
+    '{{"sigma": 数值, "params": {{"alpha": 数值, "beta_tensor": 数值, '
+    '"texture_boost": 数值}}, '
+    '"param_rationale": {{"sigma": "理由", "alpha": "理由", '
+    '"beta_tensor": "理由", "texture_boost": "理由"}}, '
     '"enhance": ["clahe"和/或"unsharp"或空数组], '
-    '"expectation": "预期效果(PSNR/SSIM量级与视觉效果)"}'
+    '"expectation": "预期效果(PSNR/SSIM量级与视觉效果)"}}\n\n'
+    "历史调参记录(最近的若干条成功案例, 供你参考相似影像的最佳参数):\n{history_context}"
+)
+
+FINE_TUNE_SYSTEM = (
+    "你正在对VT-BM3D调参方案进行微调。请结合感知特征与历史调参成功案例, 输出一个更优的JSON方案。\n"
+    "你只需专注调整 sigma/alpha/beta_tensor/texture_boost 以及可选后处理enhance, "
+    "保留原方案中的分析理由并补充微调依据。\n"
+    '输出JSON格式: {"sigma": 数值, "params": {"alpha":..., "beta_tensor":..., "texture_boost":...}, '
+    '"enhance": [...], "param_rationale": {...}, "expectation": "...", "fine_tune_reason": "微调理由"}'
 )
 
 REFLECT_SYSTEM = (
@@ -60,7 +78,6 @@ REFLECT_SYSTEM = (
 PARAM_BOUNDS = {"alpha": (0.2, 0.6), "beta_tensor": (0.4, 0.8),
                 "texture_boost": (1.1, 2.0)}
 
-
 def _describe(p: dict) -> str:
     return (
         f"图像特征: 估计噪声σ={p['estimated_sigma']}, 噪声等级={p['noise_level']}, "
@@ -68,6 +85,22 @@ def _describe(p: dict) -> str:
         f"纹理复杂度={p['texture_complexity']}, 平均结构相干性={p.get('mean_coherence', 0)}, "
         f"动态范围={p.get('dynamic_range', 1.0)}"
     )
+
+
+def _history_context(n: int = 5) -> str:
+    records = load_records()[-n:] if load_records() else []
+    if not records:
+        return "暂无历史记录。"
+    lines = []
+    for r in records:
+        p = r.get("plan", {})
+        e = r.get("evaluation", {})
+        lines.append(
+            f"- 模态:{r.get('perception', {}).get('modality','?')}, sigma={r.get('noise_sigma','?')}, "
+            f"参数={p.get('params',{})}, PSNR={e.get('psnr','-')}, SSIM={e.get('ssim','-')}, "
+            f"锐度={e.get('laplacian_sharpness','-')}, 结论:{r.get('reflection','')[:60]}"
+        )
+    return "\n".join(lines)
 
 
 def _sanitize(plan: dict, est_sigma: float) -> dict:
@@ -110,6 +143,34 @@ def _fallback_plan(p: dict) -> dict:
         },
         "expectation": "离线专家规则方案, 预期达到与标准BM3D相当或更优的结构保持",
     }
+
+
+def _plan_text(plan: dict, title: str = "调参方案") -> str:
+    rationale = plan.get("param_rationale") or {}
+    text = f"{title}: VT-BM3D (结构感知协同滤波)\nσ = {plan['sigma']:g}"
+    if rationale.get("sigma"):
+        text += f" — {rationale['sigma']}"
+    for k, v in plan["params"].items():
+        text += f"\n{k} = {v}"
+        if rationale.get(k):
+            text += f" — {rationale[k]}"
+    if plan.get("enhance"):
+        text += f"\n后处理增强: {' + '.join(plan['enhance'])}"
+    if plan.get("expectation"):
+        text += f"\n预期效果: {plan['expectation']}"
+    if plan.get("fine_tune_reason"):
+        text += f"\n微调依据: {plan['fine_tune_reason']}"
+    return text
+
+
+def _emit_stream(text: str, stage: str, chunk_size: int = 5):
+    if not text:
+        return
+    for i in range(chunk_size, len(text) + chunk_size, chunk_size):
+        yield {"type": "thinking", "stage": stage, "text": text[:i]}
+        # 模拟人类阅读/打字节奏, 让前端能看到AI正在“真实思考”
+        if len(text) > 200:
+            time.sleep(0.008)
 
 
 def _execute(noisy: np.ndarray, reference: np.ndarray | None, plan: dict) -> tuple:
@@ -158,10 +219,13 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
            "text": "对输入影像进行小波MAD噪声估计、结构张量分析与模态识别⋯\n" + desc}
     yield {"type": "perception", "perception": perception}
 
+    # ---- AI分析意见与处理思路 ----
     yield {"type": "stage", "stage": "AI分析意见与处理思路"}
     plan, analysis_text = None, ""
     if use_llm:
-        reply = llm.llm_chat(TUNE_SYSTEM, [{"role": "user", "content": desc}],
+        system = TUNE_SYSTEM.format(skill_context=_load_skill_text(),
+                                     history_context=_history_context(5))
+        reply = llm.llm_chat(system, [{"role": "user", "content": desc}],
                              max_tokens=1600, purpose="AI分析与调参")
         if reply:
             analysis_text = (reply.split("{")[0].replace("```json", "")
@@ -173,33 +237,58 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
             "未连接LLM, 使用内置专家规则进行自适应调参: 纹理复杂度越高, "
             "texture_boost越大以保护细节; 边缘密度越高, beta_tensor越大以强化结构感知。")
     plan = _sanitize(plan, perception["estimated_sigma"])
-    yield {"type": "thinking", "stage": "AI分析意见与处理思路", "text": analysis_text}
 
+    for ev in _emit_stream(analysis_text, "AI分析意见与处理思路"):
+        yield ev
+
+    # ---- AI调参方案 ----
     yield {"type": "stage", "stage": "AI调参方案"}
-    rationale = plan.get("param_rationale") or {}
-    plan_text = (f"算法: VT-BM3D (论文结构感知协同滤波)\n"
-                 f"σ = {plan['sigma']:g}"
-                 + (f" — {rationale['sigma']}" if rationale.get("sigma") else ""))
-    for k, v in plan["params"].items():
-        plan_text += f"\n{k} = {v}" + (f" — {rationale[k]}" if rationale.get(k) else "")
-    if plan.get("enhance"):
-        plan_text += f"\n后处理增强: {' + '.join(plan['enhance'])}"
-    if plan.get("expectation"):
-        plan_text += f"\n预期效果: {plan['expectation']}"
-    yield {"type": "thinking", "stage": "AI调参方案", "text": plan_text}
+    initial_plan = plan.copy()
+    for ev in _emit_stream(_plan_text(plan, "初始调参方案"), "AI调参方案"):
+        yield ev
     yield {"type": "decision", "plan": plan, "llm": use_llm}
 
+    # ---- 微调 VT-BM3D ----
+    yield {"type": "stage", "stage": "微调VT-BM3D"}
+    if use_llm:
+        user_prompt = (
+            f"图像特征: {desc}\n"
+            f"初始方案: {json.dumps(initial_plan, ensure_ascii=False)}\n"
+            f"历史参考: {_history_context(3)}\n"
+            "请参考历史成功案例对参数进行微调, 输出更优JSON方案。"
+        )
+        fine_reply = llm.llm_chat(FINE_TUNE_SYSTEM,
+                                  [{"role": "user", "content": user_prompt}],
+                                  max_tokens=1200, purpose="VT-BM3D微调")
+        fine_plan = llm.extract_json(fine_reply) if fine_reply else None
+        if fine_plan:
+            plan = _sanitize(fine_plan, perception["estimated_sigma"])
+            plan["param_rationale"] = {**(plan.get("param_rationale") or {}),
+                                       "fine_tune": plan.get("fine_tune_reason", "基于历史调参案例微调")}
+        fine_text = _plan_text(plan, "微调后方案")
+        for ev in _emit_stream(fine_text, "微调VT-BM3D"):
+            yield ev
+    else:
+        yield {"type": "thinking", "stage": "微调VT-BM3D",
+               "text": "未连接LLM, 沿用初始方案并做经验性边界裁剪。"}
+    yield {"type": "decision", "plan": plan, "llm": use_llm, "tuned": True}
+
+    # ---- 执行VT-BM3D ----
     yield {"type": "stage", "stage": "执行VT-BM3D"}
-    yield {"type": "thinking", "stage": "执行VT-BM3D",
-           "text": "构建结构显著性图(局部方差+结构张量相干性) → 强BM3D(σ×1.15)与"
-                   f"弱BM3D(σ/{plan['params'].get('texture_boost', 1.4)})协同滤波"
-                   " → 按显著性逐像素融合⋯"}
+    exec_text = (
+        "构建结构显著性图(局部方差+结构张量最大特征值) → 强BM3D(σ×1.15)与"
+        f"弱BM3D(σ/{plan['params'].get('texture_boost', 1.4)})协同滤波"
+        " → 按显著性逐像素融合⋯"
+    )
+    for ev in _emit_stream(exec_text, "执行VT-BM3D"):
+        yield ev
     output, denoised, ev = _execute(noisy, reference, plan)
     yield {"type": "thinking", "stage": "执行VT-BM3D",
            "text": f"VT-BM3D去噪完成 (σ={plan['sigma']:g}, "
                    f"参数={json.dumps(plan['params'], ensure_ascii=False)}), "
                    f"增强: {' + '.join(plan['enhance']) if plan.get('enhance') else '无'}"}
 
+    # ---- 处理结果分析 ----
     yield {"type": "stage", "stage": "处理结果分析"}
     history = [{"plan": plan, "evaluation": ev}]
     reflection = ""
@@ -212,7 +301,8 @@ def run_ai_pipeline(noisy: np.ndarray, reference: np.ndarray | None = None,
         verdict = llm.extract_json(reply) if reply else None
         if verdict:
             reflection = verdict.get("analysis") or verdict.get("comment", "")
-            yield {"type": "thinking", "stage": "处理结果分析", "text": reflection}
+            for evv in _emit_stream(reflection, "处理结果分析"):
+                yield evv
             adj = verdict.get("adjustment")
             if not verdict.get("satisfied", True) and adj:
                 adj = _sanitize(dict(adj), plan["sigma"])

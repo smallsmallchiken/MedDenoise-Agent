@@ -1,9 +1,18 @@
 ---
 name: denoise-strategy
-description: 医学影像去噪算法选择策略知识
+description: 医学影像去噪策略与 VT-BM3D 论文知识
 ---
 
 # 去噪策略选择知识
+
+## VT-BM3D 论文核心 (用于 Agent 微调与决策)
+- 论文标题: *VT-BM3D: A Collaborative Filtering Framework with Joint Optimization of Structure Awareness and Noise Characteristics*.
+- 核心公式: 结构显著性图 C' = α·V_norm + β·λ_norm, 其中 V_norm 为归一化局部方差, λ_norm 为结构张量最大特征值归一值; 经验取值 α=0.4, β=0.6。
+- 自适应匹配阈值: τ_adaptive = τ_min + (τ_max − τ_min)·(C')^γ。
+- 增强型 BM3D 融合: 显著性高的边缘/纹理区使用弱去噪 BM3D(σ/texture_boost); 显著性低的平坦区使用强去噪 BM3D(σ×1.15); 最终 fused = (1−S)·strong + S·weak。
+- 结构化噪声预设参数: 高频对角条纹噪声(g3)取 τ_max=7000, γ=2.5, texture_boost=1.4; 周期网格噪声(g5)取 τ_max=7200, γ=2.6, texture_boost=1.5。
+- 自适应变换选择: 基础估计阶段对周期/网格噪声使用 DST, 最终阶段恢复 DCT 以兼顾稀疏性与重建精度。
+- 论文实验结论: Set12 上平均 PSNR 提升 1.56 dB(g3)/1.91 dB(g5); BSDS300 上平均提升 2.26 dB(g3)/2.44 dB(g5), 同时保持更高 SSIM 与计算效率。
 
 ## 深度学习去噪器 DnCNN
 - 18 ≤ σ ≤ 32 且预训练权重可用时首选 dncnn(σ=25灰度模型),
