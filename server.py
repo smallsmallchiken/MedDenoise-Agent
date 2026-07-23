@@ -465,6 +465,7 @@ def index():
     return FileResponse(ROOT / "frontend" / "index.html")
 
 
+app.mount("/static/datasets", StaticFiles(directory=ROOT / "data" / "datasets" / "MedSmall"), name="datasets")
 app.mount("/static", StaticFiles(directory=ROOT / "frontend"), name="static")
 
 if __name__ == "__main__":

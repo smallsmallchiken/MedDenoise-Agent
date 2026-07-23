@@ -158,41 +158,54 @@
     .toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; }
     .slider-wrap { display: flex; align-items: center; gap: 12px; }
     .slider-wrap input[type=range] { flex: 1; }
-    .actions { display: flex; gap: 10px; margin-top: 16px; }
+    .actions { display: flex; gap: 10px; margin-bottom: 14px; }
     .actions .btn { flex: 1; }
+
+    .preview-box { margin-top: 6px; border: 1px dashed var(--line); border-radius: 10px; padding: 12px; background: var(--panel2); text-align: center; }
+    .preview-box img { max-width: 100%; max-height: 220px; border-radius: 8px; background: #fff; border: 1px solid var(--line); object-fit: contain; }
+    .preview-label { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .preview-placeholder { color: var(--muted); font-size: 13px; padding: 40px 0; }
+    .config-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .sum-tag { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 5px 11px; font-size: 12px; color: var(--muted); }
 
     .perception-box { display: flex; flex-direction: column; gap: 12px; }
     .perception-tags { display: flex; flex-wrap: wrap; gap: 8px; }
     .tag { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 5px 11px; font-size: 12px; }
-    .radar-wrap { height: 230px; }
+    .radar-wrap { height: 260px; }
 
     .pipeline {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
-      margin: 0 0 16px;
+      margin: 0 0 14px;
     }
     .pipeline .step {
       flex: 1;
-      min-width: 120px;
+      min-width: 130px;
       background: var(--panel2);
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px 12px;
-      text-align: center;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-size: 13px;
       color: var(--muted);
-      position: relative;
     }
     .pipeline .step.done { border-color: var(--primary); color: var(--primary); background: #eef2ff; }
     .pipeline .step.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+    .step.active .step-num { background: #fff; color: var(--primary); }
+    .step.done .step-num { background: var(--primary); color: #fff; }
+    .progress-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+    .progress-fill { height: 100%; background: var(--primary); transition: width .3s ease; }
 
     .thinking-box {
       background: var(--panel2);
       border-left: 4px solid var(--primary);
       padding: 14px;
       border-radius: 0 8px 8px 0;
-      margin-bottom: 16px;
+      margin-bottom: 0;
       font-size: 13px;
       line-height: 1.6;
       white-space: pre-wrap;
@@ -202,13 +215,23 @@
 
     .images-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
     }
-    .img-card img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
-    .img-card .label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .img-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .img-card img { width: 100%; border-radius: 8px; background: #fff; }
+    .img-card .label { font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center; }
     .metrics { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
     .metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+
+    .result-card h3 { margin: 0 0 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .result-mode { background: rgba(18,46,138,0.1); color: var(--primary); font-size: 12px; padding: 3px 10px; border-radius: 12px; }
+    .result-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .result-actions { display: flex; gap: 10px; }
+    .result-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .result-stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+    .result-stat .num { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .result-stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
     /* 聊天 */
     .chat-wrap {
@@ -409,7 +432,7 @@
           <h3>输入配置</h3>
           <div class="row">
             <label>医学影像示例</label>
-            <select v-model="sample_id" @change="file=null">
+            <select v-model="sample_id" @change="onSampleChange">
               <option value="">请选择</option>
               <option v-for="s in samples" :key="s.id" :value="s.id">{{s.name}}</option>
             </select>
@@ -431,6 +454,20 @@
             <button class="btn" @click="runAI" :disabled="running">{{ running ? 'AI处理中...' : 'AI智能处理' }}</button>
             <button class="btn-ghost" @click="runStd" :disabled="running">标准处理</button>
           </div>
+
+          <div class="preview-box" v-if="previewUrl">
+            <img :src="previewUrl" alt="预览">
+            <div class="preview-label">{{ previewLabel }}</div>
+          </div>
+          <div class="preview-box" v-else>
+            <div class="preview-placeholder">选择示例或上传图片后，预览将实时显示</div>
+          </div>
+
+          <div class="config-summary" v-if="sample_id || file">
+            <div class="sum-tag" v-if="sampleName">示例: {{sampleName}}</div>
+            <div class="sum-tag" v-if="file">文件: {{file.name}}</div>
+            <div class="sum-tag">噪声模拟: {{add_noise ? ('σ = ' + sigma) : '关闭'}}</div>
+          </div>
         </div>
 
         <div class="perception-box card">
@@ -443,30 +480,43 @@
             <span class="tag">纹理复杂度: {{ (perception.texture_complexity||0).toFixed(3) }}</span>
             <span class="tag">动态范围: {{ (perception.dynamic_range||0).toFixed(3) }}</span>
           </div>
-          <div class="muted" v-else>选择图像并点击处理后, 这里会显示结构感知分析。</div>
+          <div class="muted" v-else>选择图像并点击处理后，这里会显示结构感知分析</div>
           <div class="radar-wrap" ref="radarChart" v-if="perception"></div>
         </div>
 
-        <div style="grid-column: 1 / -1;">
-          <div class="card" style="margin-bottom:16px">
-            <div class="pipeline">
-              <div v-for="(s, idx) in stageNames" :key="s" class="step"
-                   :class="{done: stageState(idx)==='done', active: stageState(idx)==='active'}">{{idx+1}}. {{s}}</div>
+        <div class="card" style="grid-column: 1 / -1; margin-bottom:16px">
+          <div class="pipeline">
+            <div class="step" v-for="(s, idx) in stageNames" :key="s"
+                 :class="{done: stageState(idx)==='done', active: stageState(idx)==='active'}">
+              <div class="step-num">{{idx+1}}</div>
+              <div class="step-title">{{s}}</div>
             </div>
-            <div class="thinking-box" v-if="currentThinking">{{ currentThinking }}</div>
-            <div v-else class="muted">点击“AI智能处理”查看 AI 分析、微调与执行全过程。</div>
           </div>
+          <div class="progress-bar" v-if="running || stageProgress > 0">
+            <div class="progress-fill" :style="{width: stageProgress + '%'}"></div>
+          </div>
+          <div class="thinking-box" v-if="currentThinking">{{ currentThinking }}</div>
+          <div v-else-if="!running && stageProgress == 0" class="muted">点击“AI智能处理”查看 AI 分析、微调与执行全过程。</div>
+        </div>
 
-          <div class="card" v-if="result">
-            <h3>处理结果</h3>
-            <div class="metrics" v-if="result.evaluation">
-              <span class="metric" v-for="(v,k) in result.evaluation" :key="k">{{k}}: {{typeof v==='number' ? v.toFixed(3) : v}}</span>
+        <div class="card result-card" style="grid-column: 1 / -1;" v-if="result">
+          <div class="result-header">
+            <h3>处理结果 <span class="result-mode">{{result.mode || 'VT-BM3D'}}</span></h3>
+            <div class="result-actions">
+              <button class="btn-ghost" v-if="result.output_image" @click="downloadResult">下载结果图</button>
+              <button class="btn-ghost" @click="resetRun">重新处理</button>
             </div>
-            <div class="images-row" style="margin-top:14px">
-              <div class="img-card" v-if="result.input_image"><img :src="result.input_image"><div class="label">含噪输入</div></div>
-              <div class="img-card" v-if="result.reference_image"><img :src="result.reference_image"><div class="label">原始参考</div></div>
-              <div class="img-card" v-if="result.output_image"><img :src="result.output_image"><div class="label">VT-BM3D 去噪结果 ({{result.mode || 'Agent调参'}})</div></div>
+          </div>
+          <div class="result-stats" v-if="prettyMetrics">
+            <div class="result-stat" v-for="(v,k) in prettyMetrics" :key="k">
+              <div class="num">{{v}}</div>
+              <div class="label">{{metricName(k)}}</div>
             </div>
+          </div>
+          <div class="images-row">
+            <div class="img-card" v-if="result.input_image"><img :src="result.input_image"><div class="label">含噪输入</div></div>
+            <div class="img-card" v-if="result.reference_image"><img :src="result.reference_image"><div class="label">原始参考</div></div>
+            <div class="img-card" v-if="result.output_image"><img :src="result.output_image"><div class="label">去噪输出</div></div>
           </div>
         </div>
       </div>
@@ -671,7 +721,7 @@
         <div class="card" style="margin-bottom:16px" v-if="stats">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
             <h3 style="margin:0">调用趋势</h3>
-            <span class="muted" style="font-size:12px">最近 {{Object.keys(stats.daily||{}).length}} 天</span>
+            <span class="muted" style="font-size:12px">最近 7 天</span>
           </div>
           <div ref="apiTrendChart" style="height:300px"></div>
         </div>
@@ -739,6 +789,8 @@ createApp({
       samples: [],
       sample_id: '',
       file: null,
+      previewUrl: '',
+      previewIsObject: false,
       add_noise: true,
       sigma: 25,
       running: false,
@@ -746,6 +798,7 @@ createApp({
       perception: null,
       result: null,
       stageNames: ['感知分析','AI分析意见与处理思路','AI调参方案','微调VT-BM3D','执行VT-BM3D','处理结果分析'],
+      currentStage: '',
       stageStatus: {},
       history: [],
       chatMessages: [
@@ -849,7 +902,39 @@ createApp({
         dRmse: dr.length ? Number((dr.reduce((a, b) => a + b, 0) / dr.length).toFixed(4)) : null
       };
     },
-    recent5() { return this.stats && this.stats.recent ? this.stats.recent.slice(0,5) : []; }
+    recent5() { return this.stats && this.stats.recent ? this.stats.recent.slice(0,5) : []; },
+    sampleName() {
+      const s = this.samples.find(x => x.id === this.sample_id);
+      return s ? s.name : '';
+    },
+    previewLabel() {
+      if (this.file) return '上传预览' + (this.add_noise ? '（实际将加入 σ=' + this.sigma + ' 噪声）' : '');
+      if (this.sampleName) return this.sampleName + (this.add_noise ? ' — σ=' + this.sigma + ' 噪声模拟' : ' — 原始图像');
+      return '';
+    },
+    stageProgress() {
+      const total = this.stageNames.length;
+      if (!total) return 0;
+      let done = 0, active = 0;
+      this.stageNames.forEach(s => {
+        const st = this.stageStatus[s];
+        if (st === 'done') done++;
+        else if (st === 'active' || this.currentStage === s) active++;
+      });
+      if (this.running && done === 0 && active === 0) return 5;
+      return Math.min(100, Math.round((done + (active ? 0.5 : 0)) / total * 100));
+    },
+    prettyMetrics() {
+      if (!this.result || !this.result.evaluation) return {};
+      const out = {};
+      ['psnr','ssim','rmse','laplacian_sharpness','gradient_energy','entropy','processing_time_s'].forEach(k => {
+        if (k in this.result.evaluation && typeof this.result.evaluation[k] === 'number') out[k] = this.metricFmt(k, this.result.evaluation[k]);
+      });
+      for (const [k, v] of Object.entries(this.result.evaluation)) {
+        if (!(k in out) && typeof v === 'number') out[k] = this.metricFmt(k, v);
+      }
+      return out;
+    }
   },
   async mounted() {
     if (this.token) {
@@ -945,7 +1030,21 @@ createApp({
     },
 
     // common
-    onFileChange(e) { this.file = e.target.files[0]; this.sample_id = ''; },
+    onFileChange(e) {
+      const f = e.target.files[0];
+      this.releasePreview();
+      this.file = f; this.sample_id = '';
+      if (f) { this.previewUrl = URL.createObjectURL(f); this.previewIsObject = true; }
+    },
+    releasePreview() {
+      if (this.previewIsObject && this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = ''; this.previewIsObject = false;
+    },
+    onSampleChange() {
+      this.releasePreview();
+      this.file = null;
+      if (this.sample_id) { this.previewUrl = '/static/datasets/' + this.sample_id.replace(/^med_/, '') + '.png'; this.previewIsObject = false; }
+    },
     mdToHtml(t) {
       if (!t) return '';
       let s = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -971,11 +1070,34 @@ createApp({
       if (this.currentStage === name) return 'active';
       return '';
     },
+    metricName(k) {
+      const names = { psnr: 'PSNR (dB)', ssim: 'SSIM', rmse: 'RMSE', laplacian_sharpness: '清晰度', laplacian: '清晰度', gradient_energy: '梯度能量', gradient: '梯度能量', entropy: '熵', processing_time_s: '耗时(s)' };
+      return names[k] || k;
+    },
+    metricFmt(k, v) {
+      if (typeof v !== 'number') return v;
+      if (k === 'psnr') return v.toFixed(2);
+      if (k === 'ssim') return v.toFixed(3);
+      if (k === 'rmse') return v.toFixed(4);
+      if (k === 'processing_time_s') return v.toFixed(2);
+      return v.toFixed(3);
+    },
+    downloadResult() {
+      if (!this.result || !this.result.output_image) return;
+      const a = document.createElement('a');
+      a.href = this.result.output_image;
+      a.download = 'vtbm3d_result.png';
+      a.click();
+    },
+    resetRun() {
+      this.result = null; this.perception = null; this.currentThinking = '';
+      this.stageStatus = {}; this.currentStage = '';
+    },
 
     // run
     async runAI() {
       this.running = true; this.result = null; this.perception = null; this.currentThinking = '';
-      this.stageStatus = {};
+      this.currentStage = ''; this.stageStatus = {};
       const form = new FormData();
       if (this.file) form.append('file', this.file);
       else if (this.sample_id) form.append('sample_id', this.sample_id);
@@ -1130,21 +1252,26 @@ createApp({
       const el = this.$refs.apiTrendChart; if (!el) return;
       if (this.charts.apiTrend) this.charts.apiTrend.dispose();
       this.charts.apiTrend = echarts.init(el);
-      const dates = Object.keys(this.stats.daily).sort();
-      const calls = dates.map(d => this.stats.daily[d].calls || 0);
-      const cost = dates.map(d => Number((this.stats.daily[d].cost || 0).toFixed(4)));
+      const pad = n => String(n).padStart(2,'0');
+      const dates = [];
+      for (let i=6; i>=0; i--) {
+        const d = new Date(); d.setDate(d.getDate()-i);
+        dates.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+      }
+      const calls = dates.map(d => (this.stats.daily[d] && this.stats.daily[d].calls) || 0);
+      const cost = dates.map(d => Number(((this.stats.daily[d] && this.stats.daily[d].cost) || 0).toFixed(4)));
       this.charts.apiTrend.setOption({
         tooltip: { trigger: 'axis' },
         legend: { data: ['调用次数','费用($)'], bottom: 0 },
         grid: { left:'3%', right:'4%', bottom:'15%', top:'12%', containLabel:true },
-        xAxis: { type:'category', data: dates, axisLabel: { rotate:45, interval:0 }, axisTick:{alignWithLabel:true} },
+        xAxis: { type:'category', boundaryGap: false, data: dates, axisLabel: { rotate:30, interval:'auto' }, axisTick:{alignWithLabel:true} },
         yAxis: [
-          { type:'value', name:'次数', splitLine:{lineStyle:{type:'dashed'}} },
-          { type:'value', name:'费用($)', axisLabel:{formatter: v => v.toFixed(3)} }
+          { type:'value', name:'次数', splitLine:{lineStyle:{type:'dashed'}}, minInterval:1 },
+          { type:'value', name:'费用($)', axisLabel:{formatter: v => v.toFixed(3)}, splitLine:{show:false} }
         ],
         series: [
-          { name:'调用次数', type:'bar', data: calls, itemStyle:{color:'#122e8a', borderRadius:[4,4,0,0]}, barMaxWidth:30 },
-          { name:'费用($)', type:'line', yAxisIndex:1, data: cost, smooth:true, lineStyle:{color:'#d97706', width:3}, symbol:'circle', symbolSize:6 }
+          { name:'调用次数', type:'line', data: calls, smooth:true, symbol:'circle', symbolSize:8, lineStyle:{color:'#122e8a', width:3}, areaStyle:{color:'rgba(18,46,138,0.08)'}, itemStyle:{color:'#122e8a'}},
+          { name:'费用($)', type:'line', yAxisIndex:1, data: cost, smooth:true, lineStyle:{color:'#d97706', width:3}, symbol:'circle', symbolSize:6, itemStyle:{color:'#d97706'}}
         ]
       }, true);
     },
