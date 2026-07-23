@@ -103,6 +103,9 @@
       outline-color: var(--primary);
       background: var(--panel2);
     }
+    .verify-wrap { display: flex; gap: 8px; }
+    .verify-wrap input { flex: 1; }
+    .verify-wrap button { flex-shrink: 0; white-space: nowrap; }
     .auth-card .btn { width: 100%; margin-top: 8px; }
     .toast { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
@@ -210,49 +213,59 @@
     /* 聊天 */
     .chat-wrap {
       display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 16px;
+      grid-template-columns: 1fr 340px;
+      gap: 18px;
+      align-items: start;
     }
     .chat-messages {
       background: var(--panel);
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid var(--line);
-      height: 520px;
+      height: 600px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
     }
-    .chat-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-    .msg { display: flex; gap: 10px; margin-bottom: 16px; }
+    .chat-header { padding: 14px 18px; border-bottom: 1px solid var(--line); background: var(--panel2); display: flex; justify-content: space-between; align-items: center; }
+    .chat-title { font-weight: 700; color: var(--primary); font-size: 15px; }
+    .chat-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .chat-list { flex: 1; overflow-y: auto; padding: 18px; }
+    .msg { display: flex; gap: 12px; margin-bottom: 20px; align-items: flex-start; }
     .msg.user { flex-direction: row-reverse; }
     .msg-avatar {
-      width: 34px; height: 34px; border-radius: 50%;
+      width: 38px; height: 38px; border-radius: 50%;
       display: grid; place-items: center;
-      font-size: 12px; font-weight: 700; color: #fff;
-      flex-shrink: 0;
+      font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
     .msg.ai .msg-avatar { background: var(--primary); }
-    .msg.user .msg-avatar { background: #9ca3af; }
+    .msg.user .msg-avatar { background: #6b7280; }
+    .msg-meta { max-width: 76%; }
+    .msg-author { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .msg.user .msg-author { text-align: right; }
     .bubble {
       background: var(--panel2);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 14px;
-      max-width: 80%;
-      font-size: 14px;
-      line-height: 1.6;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 14px; line-height: 1.7;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .msg.user .bubble { background: var(--primary); color: #fff; }
-    .bubble pre { background: #f3f4f6; padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; }
-    .msg.user .bubble pre { background: rgba(255,255,255,0.15); }
-    .chat-input { display: flex; gap: 10px; padding: 12px; border-top: 1px solid var(--line); }
-    .chat-input input { flex: 1; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; outline-color: var(--primary); }
-    .quick-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
-    .chip:hover { border-color: var(--primary); color: var(--primary); }
+    .msg.user .bubble { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .bubble pre { background: #f3f4f6; padding: 10px; border-radius: 8px; overflow: auto; font-size: 12px; border: 1px solid var(--line); }
+    .msg.user .bubble pre { background: rgba(255,255,255,0.15); border: none; }
+    .chat-input { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); background: var(--panel2); }
+    .chat-input input { flex: 1; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; outline-color: var(--primary); background: var(--panel); }
+    .typing:after { content: '...'; animation: dots 1.4s steps(4,end) infinite; }
+    @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
+    .quick-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; padding: 7px 13px; font-size: 13px; cursor: pointer; transition: 0.15s; }
+    .chip:hover { border-color: var(--primary); color: var(--primary); background: #fff; }
+    .chat-sidebar { align-self: start; }
+    .chat-sidebar .card { margin-bottom: 0; }
+    .history-item { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 13px; transition: 0.15s; }
+    .history-item:hover { border-color: var(--primary); }
+    .history-meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
     /* 论文结果 */
     .summary-grid {
@@ -271,10 +284,14 @@
     .figure-card img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
 
     /* 算法评测 */
-    .innovation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .innovation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
     .inno-card { }
-    .inno-card h4 { margin: 0 0 8px; color: var(--primary); }
-    .arch-img { width: 100%; border-radius: 10px; border: 1px solid var(--line); margin: 10px 0; }
+    .inno-card h4 { margin: 0 0 10px; color: var(--primary); font-size: 15px; }
+    .inno-body p { margin: 0 0 8px; font-size: 13px; line-height: 1.8; }
+    .inno-body ul { margin: 0; }
+    .inno-body li { font-size: 13px; line-height: 1.9; }
+    .arch-img { width: 100%; border-radius: 10px; border: 1px solid var(--line); margin: 12px 0; }
+    .arch-caption { font-size: 13px; line-height: 1.8; }
     .formula { background: var(--panel2); border: 1px dashed var(--line); border-radius: 8px; padding: 10px; font-family: "Courier New", monospace; font-size: 13px; margin: 10px 0; }
 
     /* API监控 */
@@ -309,11 +326,19 @@
           <div class="form-row"><label>账号</label><input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login"></div>
           <div class="form-row"><label>密码</label><input type="password" v-model="loginForm.password" placeholder="密码" @keyup.enter="login"></div>
           <button class="btn" @click="login" :disabled="loading">登录</button>
-          <div class="muted" style="margin-top:10px">演示管理员: admin / 123456</div>
         </div>
 
         <div v-if="authTab==='register'">
           <div class="form-row"><label>账号</label><input v-model="registerForm.username" placeholder="用户名"></div>
+          <div class="form-row"><label>邮箱</label><input type="email" v-model="registerForm.email" placeholder="邮箱"></div>
+          <div class="form-row verify-row">
+            <label>邮箱验证码</label>
+            <div class="verify-wrap">
+              <input v-model="registerForm.code" placeholder="验证码" @keyup.enter="register">
+              <button class="btn-ghost" style="font-size:13px;padding:8px 12px" @click="sendRegisterCode" :disabled="registerCodeSending">{{ registerCodeSending ? '发送中' : (registerCodeTimer>0 ? registerCodeTimer+'s' : '获取验证码') }}</button>
+            </div>
+            <div v-if="registerExpectedCode" class="muted" style="font-size:12px;margin-top:6px">演示验证码: {{registerExpectedCode}}</div>
+          </div>
           <div class="form-row"><label>密码</label><input type="password" v-model="registerForm.password" placeholder="密码"></div>
           <div class="form-row"><label>确认密码</label><input type="password" v-model="registerForm.confirm" placeholder="确认密码" @keyup.enter="register"></div>
           <button class="btn" @click="register" :disabled="loading">注册</button>
@@ -321,6 +346,15 @@
 
         <div v-if="authTab==='reset'">
           <div class="form-row"><label>账号</label><input v-model="resetForm.username" placeholder="用户名"></div>
+          <div class="form-row"><label>注册邮箱</label><input type="email" v-model="resetForm.email" placeholder="注册时填写的邮箱"></div>
+          <div class="form-row verify-row">
+            <label>邮箱验证码</label>
+            <div class="verify-wrap">
+              <input v-model="resetForm.code" placeholder="验证码" @keyup.enter="resetPwd">
+              <button class="btn-ghost" style="font-size:13px;padding:8px 12px" @click="sendResetCode" :disabled="resetCodeSending">{{ resetCodeSending ? '发送中' : (resetCodeTimer>0 ? resetCodeTimer+'s' : '获取验证码') }}</button>
+            </div>
+            <div v-if="resetExpectedCode" class="muted" style="font-size:12px;margin-top:6px">演示验证码: {{resetExpectedCode}}</div>
+          </div>
           <div class="form-row"><label>新密码</label><input type="password" v-model="resetForm.password" placeholder="新密码"></div>
           <div class="form-row"><label>确认新密码</label><input type="password" v-model="resetForm.confirm" placeholder="确认新密码" @keyup.enter="resetPwd"></div>
           <button class="btn" @click="resetPwd" :disabled="loading">重置</button>
@@ -421,27 +455,42 @@
       <!-- 智能对话 -->
       <div v-if="tab==='chat'" class="chat-wrap">
         <div class="chat-messages">
+          <div class="chat-header">
+            <div>
+              <div class="chat-title">MedDenoise 智能助手</div>
+              <div class="chat-subtitle">基于 VT-BM3D 论文与处理历史的专业去噪问答</div>
+            </div>
+            <button class="btn-ghost" style="font-size:12px" @click="chatMessages=[{role:'ai',content:'你好, 我是 MedDenoise-Agent 智能助手。可以为你讲解 VT-BM3D 论文、分析去噪参数, 或帮你调用右侧快捷问题。'}]">清空对话</button>
+          </div>
           <div class="chat-list" ref="chatList">
             <div v-for="(msg, i) in chatMessages" :key="i" class="msg" :class="msg.role">
               <div class="msg-avatar">{{ msg.role==='user' ? 'U' : 'AI' }}</div>
-              <div class="bubble" v-html="mdToHtml(msg.content)"></div>
+              <div class="msg-meta">
+                <div class="msg-author">{{msg.role==='user'?'我':'MedDenoise Agent'}}</div>
+                <div class="bubble" v-html="mdToHtml(msg.content)"></div>
+              </div>
             </div>
-            <div v-if="chatSending" class="msg ai"><div class="msg-avatar">AI</div><div class="bubble">思考中...</div></div>
+            <div v-if="chatSending" class="msg ai"><div class="msg-avatar">AI</div><div class="msg-meta"><div class="msg-author">MedDenoise Agent</div><div class="bubble"><span class="typing">思考中</span></div></div></div>
           </div>
           <div class="chat-input">
             <input v-model="chatInput" placeholder="输入问题, 例如: 介绍一下 VT-BM3D 的创新点" @keyup.enter="sendChat">
             <button class="btn" @click="sendChat" :disabled="chatSending">发送</button>
           </div>
         </div>
-        <div class="card" style="align-self:start">
-          <h3>快捷问题</h3>
-          <div class="quick-chips">
-            <div class="chip" v-for="q in quickQuestions" :key="q" @click="ask(q)">{{q}}</div>
+        <div class="chat-sidebar">
+          <div class="card">
+            <h3>快捷问题</h3>
+            <div class="quick-chips">
+              <div class="chip" v-for="q in quickQuestions" :key="q" @click="ask(q)">{{q}}</div>
+            </div>
           </div>
-          <h3 style="margin-top:18px">最近处理记录</h3>
-          <div class="muted" v-if="!history.length">暂无记录</div>
-          <div v-for="h in history.slice(0,3)" :key="h.id" class="muted" style="margin-bottom:8px">
-            <strong>#{{h.id}}</strong> {{h.source}} σ={{h.noise_sigma}} PSNR={{h.evaluation&&h.evaluation.psnr?h.evaluation.psnr.toFixed(2):'-'}}
+          <div class="card" style="margin-top:16px">
+            <h3>最近处理记录</h3>
+            <div class="muted" v-if="!history.length" style="font-size:13px">暂无记录</div>
+            <div v-for="h in history.slice(0,5)" :key="h.id" class="history-item">
+              <div><strong>#{{h.id}}</strong> {{(h.source||'未命名').replace(/^med_/,'')}}</div>
+              <div class="history-meta">σ={{h.noise_sigma}} · PSNR {{h.evaluation&&h.evaluation.psnr!=null?h.evaluation.psnr.toFixed(2):'-'}} · {{h.llm?'Agent调参':'未调参'}}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -480,50 +529,69 @@
           </table>
         </div>
 
+        <div class="card" style="margin-bottom:16px">
+          <h3>Agent 调参 vs 未调参 — 平均指标对比</h3>
+          <div ref="compareAvgChart" style="height:300px" v-if="compareGroups.length"></div>
+          <div v-else class="muted">暂无处理记录，请在“智能处理”中分别运行“标准处理”与“AI智能处理”以生成对比数据。</div>
+        </div>
         <div class="card">
-          <h3>Agent 调参 vs 未调参 (本系统处理记录)</h3>
-          <div ref="compareChart" style="height:260px" v-if="compareData.length"></div>
-          <div v-else class="muted">暂无处理记录, 请在“智能处理”中运行 AI 处理以生成对比数据。</div>
+          <h3>Agent 调参 vs 未调参 — 逐样本明细</h3>
+          <div ref="compareDetailChart" style="height:320px" v-if="compareRecords.length"></div>
+          <div v-else class="muted">暂无处理记录。</div>
         </div>
       </div>
 
       <!-- 算法评测 -->
       <div v-if="tab==='bench'">
         <div class="card" style="margin-bottom:16px">
-          <h3>VT-BM3D 主架构</h3>
+          <h3>论文主架构 — 两阶段协同滤波流程</h3>
+          <img class="arch-img" src="/static/assets/BM3D-Pipeline.png" alt="BM3D pipeline">
+          <p class="muted arch-caption">VT-BM3D 继承经典 BM3D 的两阶段协同滤波范式：第一阶段将相似二维块分组为三维数组，经 3D 变换和硬阈值去噪得到基础估计；第二阶段在基础估计引导下再次分组，通过 Wiener 滤波与聚合得到最终估计。VT-BM3D 在此框架上增加前置的结构感知分支，用于自适应地控制分组与融合策略。</p>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3>我们的 VT-BM3D 架构 — 结构感知与噪声自适应增强</h3>
           <img class="arch-img" src="/static/assets/VT-BM3D-architecture.png" alt="VT-BM3D architecture">
-          <p class="muted">VT-BM3D 在经典 BM3D 块匹配协同滤波的基础上, 引入<em>结构感知</em>与<em>噪声自适应</em>两个维度, 通过局部方差与结构张量联合生成结构显著性图, 指导强/弱 BM3D 逐像素融合, 从而在抑制噪声的同时更好地保留边缘与纹理。</p>
-          <img class="arch-img" src="/static/assets/BM3D-Pipeline.png" alt="BM3D pipeline" style="max-width:700px">
+          <p class="muted arch-caption">本文提出的 VT-BM3D 在原始流程中嵌入结构感知模块：联合局部方差、结构张量最大特征值与 Canny 边缘生成结构显著性图 S，进而通过幂律函数得到自适应匹配阈值 τ；强 BM3D（大 σ）负责噪声充分的平坦区域，弱 BM3D（σ / texture_boost）保护边缘与纹理，最终按 S 进行逐像素加权融合，实现去噪与保细节的优化平衡。</p>
         </div>
 
         <div class="innovation-grid">
           <div class="card inno-card">
-            <h4>创新点一: 结构感知自适应阈值</h4>
+            <h4>创新点一：结构感知自适应阈值</h4>
             <div class="formula">C' = α·V_norm + β·λ_norm</div>
             <div class="formula">τ_adaptive = τ_min + (τ_max − τ_min)·(C')^γ</div>
-            <p class="muted">局部方差反映内容复杂度, 结构张量最大特征值反映边缘/纹理方向性; 两者线性融合后通过幂律映射为自适应匹配阈值, 平坦区严格匹配、边缘区放宽匹配以保护细节。</p>
+            <div class="inno-body muted">
+              <p>局部方差 V 反映区域内容复杂度，纹理密集或边缘处 V 较大；结构张量最大特征值 λ 反映边缘/纹理的方向性与强度，λ 越大说明局部结构越明显。</p>
+              <p>将 V 与 λ 分别归一化后加权融合为结构代价 C'，经幂律映射生成自适应匹配阈值 τ_adaptive：平坦区 C' 小、阈值低，块匹配更严格，更好抑制噪声；边缘/纹理区 C' 大、阈值高，允许更多相似块参与重建，保护细节。</p>
+              <p>γ 控制阈值变化的灵敏度：γ > 1 时，高结构代价区域阈值迅速放大，避免过度平滑强边缘。Agent 可根据边缘密度与噪声类型进一步调整 α、β 与 γ，实现参数自适应。</p>
+            </div>
             <div ref="thresholdChart" style="height:220px"></div>
           </div>
           <div class="card inno-card">
-            <h4>创新点二: 边缘保护与纹理增强</h4>
-            <p class="muted">Canny 边缘图中⼼像素参与结构张量增益; 同时当局部方差与最大特征值均高于阈值时判定为纹理区, 对匹配阈值乘以 texture_boost 进一步保留高频细节。</p>
-            <ul class="muted" style="padding-left:20px">
-              <li>强 BM3D: σ × 1.15 (平坦区域)</li>
-              <li>弱 BM3D: σ / texture_boost (边缘/纹理)</li>
-              <li>融合: fused = (1−S)·strong + S·weak</li>
-            </ul>
+            <h4>创新点二：边缘保护与纹理增强</h4>
+            <div class="inno-body muted">
+              <p>Canny 边缘检测得到的中心像素参与结构张量计算，使边缘位置 λ 被进一步增强；同时当局部方差与最大特征值均超过阈值时判定为纹理区，对匹配阈值乘以 texture_boost 继续放大，保留高频细节。</p>
+              <ul style="padding-left:18px;line-height:2;margin-top:8px">
+                <li><strong>强 BM3D：</strong> σ × 1.15，适用于噪声水平高、结构信息弱的平坦区域，充分去噪；</li>
+                <li><strong>弱 BM3D：</strong> σ / texture_boost，适用于边缘/纹理区域，避免过度平滑细节；</li>
+                <li><strong>融合策略：</strong> fused = (1 − S)·strong + S·weak，S 为结构显著性图，取值 0~1，结构越显著越偏向弱滤波。</li>
+              </ul>
+            </div>
           </div>
           <div class="card inno-card">
-            <h4>创新点三: 噪声建模与自适应变换选择</h4>
-            <p class="muted">针对结构化噪声(高频对角条纹 g3、周期网格 g5)设置差异化参数; 在基础估计阶段使用 DST 更好地稀疏化周期干扰, 最终阶段恢复 DCT 完成紧凑重建。</p>
-            <table class="data-table">
-              <thead><tr><th>参数</th><th>g3</th><th>g5</th></tr></thead>
-              <tbody>
-                <tr><td>τ_max</td><td>7000</td><td>7200</td></tr>
-                <tr><td>γ</td><td>2.5</td><td>2.6</td></tr>
-                <tr><td>texture_boost</td><td>1.4</td><td>1.5</td></tr>
-              </tbody>
-            </table>
+            <h4>创新点三：噪声建模与自适应变换选择</h4>
+            <div class="inno-body muted">
+              <p>针对医学影像和实际场景中常见的结构化噪声（如高频对角条纹 g3、周期网格 g5），本文设置差异化超参数进行专门建模，而不是对所有噪声类型采用统一参数。</p>
+              <p>在基础估计阶段使用离散正弦变换 DST 更好地稀疏化周期性和条纹干扰，降低伪影；在最终估计阶段恢复离散余弦变换 DCT，完成紧凑重建并保持自然图像的平滑过渡。</p>
+              <table class="data-table" style="margin-top:10px">
+                <thead><tr><th>参数</th><th>g3</th><th>g5</th></tr></thead>
+                <tbody>
+                  <tr><td>τ_max</td><td>7000</td><td>7200</td></tr>
+                  <tr><td>γ</td><td>2.5</td><td>2.6</td></tr>
+                  <tr><td>texture_boost</td><td>1.4</td><td>1.5</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -595,8 +663,14 @@ createApp({
       user: {},
       authTab: 'login',
       loginForm: { username: '', password: '' },
-      registerForm: { username: '', password: '', confirm: '' },
-      resetForm: { username: '', password: '', confirm: '' },
+      registerForm: { username: '', email: '', code: '', password: '', confirm: '' },
+      resetForm: { username: '', email: '', code: '', password: '', confirm: '' },
+      registerCodeSending: false,
+      resetCodeSending: false,
+      registerCodeTimer: 0,
+      resetCodeTimer: 0,
+      registerExpectedCode: '',
+      resetExpectedCode: '',
       toast: '',
       loading: false,
       tab: 'run',
@@ -651,18 +725,25 @@ createApp({
         caption: `${it.image} (${it.noise}, σ=${it.sigma}) — BM3D PSNR ${it.bm3d_psnr} dB, VT-BM3D PSNR ${it.vtbm3d_psnr} dB`
       }));
     },
-    compareData() {
+    compareRecords() {
       if (!this.history.length) return [];
+      return this.history.filter(h => h.evaluation && (h.evaluation.psnr != null || h.evaluation.ssim != null)).map((h, i) => ({
+        name: ((h.source || '未命名').replace(/^med_/, '')) + '#' + (i + 1),
+        tuned: !!h.llm,
+        psnr: h.evaluation.psnr != null ? Number(h.evaluation.psnr) : null,
+        ssim: h.evaluation.ssim != null ? Number(h.evaluation.ssim) : null
+      }));
+    },
+    compareGroups() {
       const g = { true: [], false: [] };
-      this.history.forEach(h => {
-        if (h.evaluation && h.evaluation.psnr != null) {
-          g[h.llm ? 'true' : 'false'].push(h.evaluation.psnr);
-        }
-      });
+      this.compareRecords.forEach(r => { g[r.tuned ? 'true' : 'false'].push(r); });
       const out = [];
-      ['true','false'].forEach(k => {
+      ['false','true'].forEach(k => {
         const arr = g[k];
-        if (arr.length) out.push({ name: k==='true'?'Agent 调参':'未调参', avg: arr.reduce((a,b)=>a+b,0)/arr.length, count: arr.length });
+        if (arr.length) {
+          const avg = key => { const vs = arr.map(x => x[key]).filter(v => v != null); return vs.length ? (vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(key === 'ssim' ? 3 : 2) : '0'; };
+          out.push({ name: k === 'true' ? 'Agent 调参' : '未调参', count: arr.length, psnr: avg('psnr'), ssim: avg('ssim') });
+        }
       });
       return out;
     },
@@ -703,20 +784,48 @@ createApp({
       } else { this.toast = r.detail || '登录失败'; }
     },
     async register() {
+      if (!this.registerForm.code) { this.toast = '请输入邮箱验证码'; return; }
+      if (this.registerForm.code !== this.registerExpectedCode) { this.toast = '验证码错误'; return; }
+      if (this.registerForm.password !== this.registerForm.confirm) { this.toast = '两次输入密码不一致'; return; }
       this.loading = true; this.toast = '';
-      const form = new URLSearchParams(this.registerForm);
+      const { code, confirm, ...payload } = this.registerForm;
+      const form = new URLSearchParams(payload);
       const r = await fetch('/api/auth/register', { method: 'POST', body: form }).then(x=>x.json());
       this.loading = false;
-      if (r.ok) { this.toast = '注册成功, 请登录'; this.authTab = 'login'; }
+      if (r.ok) { this.toast = '注册成功, 请登录'; this.authTab = 'login'; this.registerForm = { username: '', email: '', code: '', password: '', confirm: '' }; this.registerExpectedCode = ''; }
       else { this.toast = r.detail || '注册失败'; }
     },
     async resetPwd() {
+      if (!this.resetForm.code) { this.toast = '请输入邮箱验证码'; return; }
+      if (this.resetForm.code !== this.resetExpectedCode) { this.toast = '验证码错误'; return; }
+      if (this.resetForm.password !== this.resetForm.confirm) { this.toast = '两次输入密码不一致'; return; }
       this.loading = true; this.toast = '';
-      const form = new URLSearchParams(this.resetForm);
+      const { code, confirm, ...payload } = this.resetForm;
+      const form = new URLSearchParams(payload);
       const r = await fetch('/api/auth/reset', { method: 'POST', body: form }).then(x=>x.json());
       this.loading = false;
-      if (r.ok) { this.toast = '密码已重置, 请登录'; this.authTab = 'login'; }
+      if (r.ok) { this.toast = '密码已重置, 请登录'; this.authTab = 'login'; this.resetForm = { username: '', email: '', code: '', password: '', confirm: '' }; this.resetExpectedCode = ''; }
       else { this.toast = r.detail || '重置失败'; }
+    },
+    sendRegisterCode() {
+      if (!this.registerForm.email) { this.toast = '请先填写邮箱'; return; }
+      this.registerCodeSending = true; this.toast = '';
+      setTimeout(() => {
+        this.registerExpectedCode = Math.floor(100000 + Math.random()*900000).toString();
+        this.registerCodeSending = false;
+        this.registerCodeTimer = 60;
+        const ti = setInterval(() => { this.registerCodeTimer--; if (this.registerCodeTimer <= 0) clearInterval(ti); }, 1000);
+      }, 600);
+    },
+    sendResetCode() {
+      if (!this.resetForm.email) { this.toast = '请先填写邮箱'; return; }
+      this.resetCodeSending = true; this.toast = '';
+      setTimeout(() => {
+        this.resetExpectedCode = Math.floor(100000 + Math.random()*900000).toString();
+        this.resetCodeSending = false;
+        this.resetCodeTimer = 60;
+        const ti = setInterval(() => { this.resetCodeTimer--; if (this.resetCodeTimer <= 0) clearInterval(ti); }, 1000);
+      }, 600);
     },
     async logout() {
       await this.authFetch('/api/auth/logout', { method: 'POST' });
@@ -750,6 +859,7 @@ createApp({
     async loadHistory() {
       const r = await this.authFetch('/api/history');
       this.history = Array.isArray(r) ? r : [];
+      nextTick(() => this.renderCompareCharts());
     },
     stageState(idx) {
       const name = this.stageNames[idx];
@@ -884,18 +994,51 @@ createApp({
         yAxis: { type: 'value', name: 'PSNR (dB)' },
         series: series
       });
-      nextTick(() => this.renderCompareChart());
+      nextTick(() => this.renderCompareCharts());
     },
-    renderCompareChart() {
-      const el = this.$refs.compareChart; if (!el || !this.compareData.length) return;
-      if (this.charts.compare) this.charts.compare.dispose();
-      this.charts.compare = echarts.init(el);
-      this.charts.compare.setOption({
-        tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: this.compareData.map(d=>d.name) },
-        yAxis: { type: 'value', name: '平均 PSNR (dB)' },
-        series: [{ type: 'bar', data: this.compareData.map(d=>d.avg.toFixed(2)), itemStyle:{color:'#122e8a'} }]
-      });
+    renderCompareCharts() {
+      const avgEl = this.$refs.compareAvgChart;
+      if (avgEl && this.compareGroups.length) {
+        if (this.charts.compareAvg) this.charts.compareAvg.dispose();
+        this.charts.compareAvg = echarts.init(avgEl);
+        const x = this.compareGroups.map(g => g.name + ' (n=' + g.count + ')');
+        const psnr = this.compareGroups.map(g => parseFloat(g.psnr) || 0);
+        const ssim = this.compareGroups.map(g => parseFloat(g.ssim) || 0);
+        this.charts.compareAvg.setOption({
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+          legend: { top: 28 },
+          grid: { left: '3%', right: '3%', bottom: '12%', top: '22%', containLabel: true },
+          xAxis: { type: 'category', data: x },
+          yAxis: [
+            { type: 'value', name: 'PSNR (dB)', position: 'left' },
+            { type: 'value', name: 'SSIM', position: 'right', min: 0, max: 1 }
+          ],
+          series: [
+            { name: 'PSNR', type: 'bar', data: psnr, itemStyle: { color: '#122e8a', borderRadius: [6, 6, 0, 0] }, label: { show: true, position: 'top', formatter: '{c} dB' } },
+            { name: 'SSIM', type: 'line', yAxisIndex: 1, data: ssim, itemStyle: { color: '#d97706' }, lineStyle: { width: 3 }, symbol: 'circle', symbolSize: 8, label: { show: true, position: 'top', formatter: '{c}' } }
+          ]
+        });
+      }
+      const detEl = this.$refs.compareDetailChart;
+      if (detEl && this.compareRecords.length) {
+        if (this.charts.compareDetail) this.charts.compareDetail.dispose();
+        this.charts.compareDetail = echarts.init(detEl);
+        const names = this.compareRecords.map(r => r.name);
+        const psnrData = this.compareRecords.map(r => ({ value: r.psnr != null ? Number(r.psnr.toFixed(2)) : 0, itemStyle: { color: r.tuned ? '#122e8a' : '#9ca3af' } }));
+        const ssimData = this.compareRecords.map(r => ({ value: r.ssim != null ? Number(r.ssim.toFixed(3)) : 0, itemStyle: { color: r.tuned ? '#2d4fad' : '#c4c9cf' } }));
+        this.charts.compareDetail.setOption({
+          title: { text: '逐样本 PSNR / SSIM 明细（深色=Agent 调参，灰色=未调参）', left: 'center', textStyle: { fontSize: 14, color: 'var(--primary)' } },
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+          legend: { top: 28 },
+          grid: { left: '3%', right: '3%', bottom: '18%', top: '22%', containLabel: true },
+          xAxis: { type: 'category', data: names, axisLabel: { rotate: 30 } },
+          yAxis: { type: 'value', name: '指标值' },
+          series: [
+            { name: 'PSNR', type: 'bar', data: psnrData, itemStyle: { borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', fontSize: 11 } },
+            { name: 'SSIM', type: 'bar', data: ssimData, itemStyle: { borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', fontSize: 11 } }
+          ]
+        });
+      }
     },
 
     // bench
@@ -948,13 +1091,29 @@ createApp({
       if (this.charts.api) this.charts.api.dispose();
       this.charts.api = echarts.init(el);
       const keys = Object.keys(this.stats.daily).sort();
+      const calls = keys.map(k => this.stats.daily[k].calls);
+      const costs = keys.map(k => this.stats.daily[k].cost);
       this.charts.api.setOption({
-        tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: keys },
-        yAxis: [{ type: 'value', name: '调用次数' }, { type: 'value', name: '费用 ($)' }],
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { top: 8, data: ['调用次数', '费用 ($)'] },
+        grid: { left: '3%', right: '3%', bottom: '10%', top: '20%', containLabel: true },
+        xAxis: { type: 'category', data: keys, boundaryGap: false, axisLine: { lineStyle: { color: 'var(--muted)' } }, axisLabel: { color: 'var(--muted)' } },
+        yAxis: [
+          { type: 'value', name: '调用次数', position: 'left', splitLine: { lineStyle: { color: 'var(--line)' } }, axisLine: { lineStyle: { color: 'var(--muted)' } } },
+          { type: 'value', name: '费用 ($)', position: 'right', splitLine: { show: false }, axisLine: { lineStyle: { color: 'var(--muted)' } } }
+        ],
         series: [
-          { name: '调用次数', type: 'bar', data: keys.map(k=>this.stats.daily[k].calls) },
-          { name: '费用', type: 'line', yAxisIndex:1, data: keys.map(k=>this.stats.daily[k].cost), itemStyle:{color:'#122e8a'} }
+          {
+            name: '调用次数', type: 'line', smooth: true, symbol: 'circle', symbolSize: 7, data: calls,
+            lineStyle: { color: '#122e8a', width: 3 }, itemStyle: { color: '#122e8a' },
+            areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(18,46,138,0.35)' }, { offset: 1, color: 'rgba(18,46,138,0.05)' }] } },
+            label: { show: true, position: 'top', color: '#122e8a', fontSize: 11, formatter: '{c} 次' }
+          },
+          {
+            name: '费用 ($)', type: 'line', yAxisIndex: 1, smooth: true, symbol: 'circle', symbolSize: 6, data: costs,
+            lineStyle: { color: '#d97706', width: 2 }, itemStyle: { color: '#d97706' },
+            label: { show: true, position: 'top', color: '#d97706', fontSize: 11, formatter: '${c}' }
+          }
         ]
       });
     },

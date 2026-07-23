@@ -246,7 +246,9 @@ def check_model(_: str = Depends(_require_auth)):
 @app.post("/api/auth/register")
 async def auth_register(username: str = Form(...),
                         password: str = Form(...),
-                        confirm: str = Form(...)):
+                        confirm: str = Form(...),
+                        email: str = Form(''),
+                        code: str = Form('')):
     if password != confirm:
         return {"ok": False, "detail": "两次输入密码不一致"}
     if not username or not password:
@@ -282,7 +284,9 @@ async def auth_logout(authorization: str = Header(None)):
 @app.post("/api/auth/reset")
 async def auth_reset(username: str = Form(...),
                      password: str = Form(...),
-                     confirm: str = Form(...)):
+                     confirm: str = Form(...),
+                     email: str = Form(''),
+                     code: str = Form('')):
     if password != confirm:
         return {"ok": False, "detail": "两次输入密码不一致"}
     _load_auth()
